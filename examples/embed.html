@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Integración HHR</title>
+    <style>
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="editor"></div>
+    <script type="module">
+      import { mountInsulinPlanner } from '../dist/insulin-planner.js';
+      const response = await fetch('../dist/insulinoterapia.html');
+      const portable = new DOMParser().parseFromString(await response.text(), 'text/html');
+      const bundle = portable.querySelector('script[data-hhr-bundle]').textContent;
+      const planner = mountInsulinPlanner(document.querySelector('#editor'), {
+        storageNamespace: 'ejemplo-hhr-v1',
+        getPortableBundle: () => bundle,
+      });
+      // Guardar planner.getRegimen() o planner.getText() desde la aplicación anfitriona.
+      // Invocar planner.destroy() al desmontar esta vista.
+    </script>
+  </body>
+</html>

@@ -1,0 +1,1449 @@
+.hhr-insulin {
+  --ink: #14364b;
+  --muted: #5a7180;
+  --line: #d7e3e9;
+  --blue: #15577d;
+  --green: #176247;
+  --gold: #ffc800;
+}
+.hhr-insulin * {
+  box-sizing: border-box;
+}
+.hhr-insulin {
+  margin: 0;
+  background: #edf2f5;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.hhr-insulin button,
+.hhr-insulin input,
+.hhr-insulin select,
+.hhr-insulin textarea {
+  font: inherit;
+}
+.hhr-insulin button,
+.hhr-insulin select {
+  cursor: pointer;
+}
+.hhr-insulin button {
+  border: 1px solid #476275;
+  border-radius: 7px;
+  padding: 10px 13px;
+  background: #294a60;
+  color: white;
+  font-size: 13px;
+  font-weight: 650;
+}
+.hhr-insulin button:hover {
+  background: #3a5c72;
+}
+.hhr-insulin button.primary {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #173247;
+}
+.hhr-insulin button.primary:hover {
+  background: #ffda40;
+}
+.hhr-insulin button:focus-visible,
+.hhr-insulin select:focus-visible,
+.hhr-insulin input:focus-visible,
+.hhr-insulin textarea:focus-visible {
+  outline: 3px solid #3497c6;
+  outline-offset: 2px;
+}
+.hhr-insulin .toolbar {
+  background: #14354a;
+  color: white;
+  padding: 17px 24px;
+}
+.hhr-insulin .toolbar-inner {
+  max-width: 1060px;
+  margin: auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.hhr-insulin .toolbar-title {
+  font-size: 15px;
+  font-weight: 750;
+}
+.hhr-insulin .toolbar-sub {
+  display: block;
+  color: #c4d6e0;
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 5px;
+}
+.hhr-insulin .tools {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.hhr-insulin .settings {
+  max-width: 794px;
+  margin: 22px auto 0;
+  padding: 19px 22px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.hhr-insulin .settings-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.hhr-insulin .settings-head strong {
+  font-size: 14px;
+}
+.hhr-insulin .badge {
+  font-size: 11px;
+  color: #35644c;
+  background: #edf7ef;
+  padding: 5px 9px;
+  border-radius: 20px;
+}
+.hhr-insulin .selectors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.hhr-insulin .control label {
+  font-size: 12px;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 7px;
+}
+.hhr-insulin .control select,
+.hhr-insulin .control input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 9px;
+  color: var(--ink);
+  border: 1px solid #b9cdd8;
+  border-radius: 6px;
+  background: white;
+  font-size: 13px;
+}
+.hhr-insulin .custom-control {
+  margin-top: 8px;
+}
+.hhr-insulin .helper {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 13px 0 0;
+}
+.hhr-insulin .status {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #496779;
+  margin: 9px 0 0;
+  min-height: 18px;
+}
+.hhr-insulin .sources {
+  margin-top: 11px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.hhr-insulin .sources a {
+  color: #355e76;
+}
+.hhr-insulin .sheet {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 22px auto 38px;
+  background: white;
+  box-shadow: 0 10px 36px #2847591c;
+  padding: 12mm 15mm 10mm;
+  display: flex;
+  flex-direction: column;
+}
+.hhr-insulin .identity {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 15px;
+  margin-bottom: 19px;
+}
+.hhr-insulin .logo {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.hhr-insulin .hospital-name {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.35px;
+}
+.hhr-insulin .hospital-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.hhr-insulin .eyebrow {
+  font-size: 10px;
+  letter-spacing: 1.8px;
+  font-weight: 750;
+  text-transform: uppercase;
+  color: #698493;
+  margin: 0 0 6px;
+}
+.hhr-insulin h1 {
+  font-size: 28px;
+  letter-spacing: -0.7px;
+  margin: 0 0 18px;
+  line-height: 1.15;
+}
+.hhr-insulin .patient {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px 20px;
+  margin-bottom: 18px;
+}
+.hhr-insulin .field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 31px;
+  border-bottom: 1px solid #9db2c0;
+  min-width: 0;
+}
+.hhr-insulin .field.name {
+  grid-column: 1/-1;
+}
+.hhr-insulin .field label {
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.hhr-insulin .field input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  padding: 5px 1px;
+  color: var(--ink);
+  font-size: 13px;
+}
+.hhr-insulin .panel {
+  border: 1px solid #bdddeb;
+  border-radius: 9px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  break-inside: avoid;
+}
+.hhr-insulin .section-heading {
+  padding: 12px 15px;
+  background: #edf7fc;
+  border-bottom: 1px solid #cfe4ee;
+}
+.hhr-insulin h2 {
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.25px;
+  margin: 0;
+  color: var(--blue);
+}
+.hhr-insulin .section-sub {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #4c6878;
+  margin-top: 4px;
+}
+.hhr-insulin .medication {
+  font-size: 11px;
+  color: #526d7d;
+  margin-top: 4px;
+}
+.hhr-insulin table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.hhr-insulin th,
+.hhr-insulin td {
+  text-align: left;
+  border-bottom: 1px solid #dce8ef;
+  vertical-align: middle;
+}
+.hhr-insulin tr:last-child td {
+  border-bottom: 0;
+}
+.hhr-insulin th {
+  padding: 7px 13px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  font-weight: 650;
+  color: #587383;
+}
+.hhr-insulin td {
+  padding: 6px 13px;
+  height: 42px;
+}
+.hhr-insulin .correction col:first-child {
+  width: 29%;
+}
+.hhr-insulin .correction td:first-child {
+  background: #eaf5fc;
+  border-right: 1px solid #d6e7f0;
+}
+.hhr-insulin .correction tr:nth-child(even) td:last-child {
+  background: #f9fbfd;
+}
+.hhr-insulin .editable {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 2px;
+  color: var(--ink);
+  background: transparent;
+  line-height: 1.3;
+  resize: none;
+  overflow: hidden;
+}
+.hhr-insulin .editable:hover {
+  border-color: #bbd3e0;
+}
+.hhr-insulin .editable:focus {
+  background: white;
+  border-color: #60a5c7;
+}
+.hhr-insulin .range {
+  text-align: center;
+  font-size: 19px;
+  font-weight: 800;
+}
+.hhr-insulin .dose {
+  font-size: 18px;
+  font-weight: 750;
+}
+.hhr-insulin .dose.long {
+  font-size: 13px;
+  font-weight: 650;
+}
+.hhr-insulin .green {
+  border-color: #bfdece;
+}
+.hhr-insulin .green .section-heading {
+  background: #edf8f1;
+  border-color: #cde5d7;
+}
+.hhr-insulin .green h2 {
+  color: var(--green);
+}
+.hhr-insulin .meal col:first-child {
+  width: 54%;
+}
+.hhr-insulin .meal td:first-child {
+  background: #f0f8f3;
+  border-right: 1px solid #dceadf;
+}
+.hhr-insulin .meal td {
+  height: 43px;
+  border-color: #dceadf;
+}
+.hhr-insulin .meal-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #204f3d;
+}
+.hhr-insulin .meal-dose {
+  font-size: 20px;
+  color: #14553e;
+  font-weight: 800;
+}
+.hhr-insulin .basal {
+  border-color: #e7d393;
+}
+.hhr-insulin .basal .section-heading {
+  background: #fff9e7;
+  border-color: #eadeb6;
+}
+.hhr-insulin .basal h2 {
+  color: #786019;
+}
+.hhr-insulin .basal th {
+  color: #786019;
+}
+.hhr-insulin .basal td {
+  height: 39px;
+}
+.hhr-insulin .basal td + td {
+  border-left: 1px solid #eee4c8;
+}
+.hhr-insulin .basal .editable {
+  font-size: 15px;
+  font-weight: 650;
+}
+.hhr-insulin .basal col:first-child {
+  width: 65%;
+}
+.hhr-insulin .note {
+  background: #f6f9fb;
+  border: 1px solid #dfe8ed;
+  border-radius: 7px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+}
+.hhr-insulin .note label {
+  display: block;
+  font-weight: 750;
+  font-size: 11px;
+  margin-bottom: 3px;
+}
+.hhr-insulin .note textarea {
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #486171;
+}
+.hhr-insulin .signature {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+  padding-bottom: 8px;
+  font-size: 11px;
+}
+.hhr-insulin .signature input {
+  font-size: 11px;
+}
+.hhr-insulin .signature .field {
+  flex: 1;
+}
+.hhr-insulin .footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 9px;
+  color: #728591;
+  border-top: 1px solid #dfe8ed;
+  padding-top: 11px;
+  margin-top: auto;
+}
+.hhr-insulin .print-value {
+  display: none;
+}
+.hhr-insulin [hidden] {
+  display: none !important;
+}
+.hhr-insulin #logoUpload {
+  max-width: 100%;
+  font-size: 12px;
+}
+.hhr-insulin .logo-option {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.hhr-insulin .logo-option summary {
+  cursor: pointer;
+  width: fit-content;
+}
+.hhr-insulin .logo-option input {
+  margin-top: 10px;
+}
+@media (max-width: 840px) {
+  .hhr-insulin .settings {
+    margin: 16px 12px 0;
+  }
+  .hhr-insulin .sheet {
+    width: calc(100% - 24px);
+    min-height: auto;
+    margin: 16px 12px 28px;
+    padding: 25px 22px;
+  }
+  .hhr-insulin .toolbar {
+    padding: 16px;
+  }
+  .hhr-insulin .hospital-name {
+    font-size: 17px;
+  }
+  .hhr-insulin .hospital-sub {
+    font-size: 10px;
+  }
+  .hhr-insulin .logo {
+    width: 57px;
+    height: 57px;
+  }
+  .hhr-insulin .identity {
+    gap: 13px;
+  }
+  .hhr-insulin .correction col:first-child {
+    width: 32%;
+  }
+  .hhr-insulin .range {
+    font-size: 17px;
+  }
+}
+@media (max-width: 520px) {
+  .hhr-insulin .selectors {
+    grid-template-columns: 1fr;
+  }
+  .hhr-insulin .settings {
+    padding: 17px;
+  }
+  .hhr-insulin .toolbar-title {
+    font-size: 14px;
+  }
+  .hhr-insulin button {
+    font-size: 12px;
+    padding: 9px 10px;
+  }
+  .hhr-insulin .sheet {
+    padding: 22px 15px;
+  }
+  .hhr-insulin .identity {
+    gap: 11px;
+  }
+  .hhr-insulin .hospital-name {
+    font-size: 15px;
+  }
+  .hhr-insulin .logo {
+    width: 50px;
+    height: 50px;
+  }
+  .hhr-insulin h1 {
+    font-size: 25px;
+  }
+  .hhr-insulin h2 {
+    font-size: 16px;
+  }
+  .hhr-insulin .patient {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .hhr-insulin .field.name {
+    grid-column: auto;
+  }
+  .hhr-insulin td {
+    padding: 5px 8px;
+  }
+  .hhr-insulin .range {
+    font-size: 15px;
+  }
+  .hhr-insulin .dose {
+    font-size: 17px;
+  }
+  .hhr-insulin .dose.long {
+    font-size: 12px;
+  }
+  .hhr-insulin .section-heading {
+    padding: 11px;
+  }
+  .hhr-insulin .meal-name {
+    font-size: 14px;
+  }
+  .hhr-insulin .footer {
+    font-size: 8px;
+  }
+}
+
+@media print {
+  .hhr-insulin * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .hhr-insulin {
+    background: white;
+  }
+  .hhr-insulin .toolbar,
+  .hhr-insulin .settings {
+    display: none !important;
+  }
+  .hhr-insulin .sheet {
+    width: 100%;
+    min-height: 272mm;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  .hhr-insulin .identity {
+    margin-bottom: 15px;
+    padding-bottom: 12px;
+  }
+  .hhr-insulin .hospital-name {
+    font-size: 19px;
+  }
+  .hhr-insulin .hospital-sub {
+    font-size: 11px;
+  }
+  .hhr-insulin .logo {
+    width: 64px;
+    height: 64px;
+  }
+  .hhr-insulin h1 {
+    font-size: 26px;
+    margin-bottom: 14px;
+  }
+  .hhr-insulin h2 {
+    font-size: 17px;
+  }
+  .hhr-insulin .patient {
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 15px;
+    gap: 8px 20px;
+  }
+  .hhr-insulin .field.name {
+    grid-column: 1/-1;
+  }
+  .hhr-insulin .field {
+    min-height: 28px;
+  }
+  .hhr-insulin .panel {
+    margin-bottom: 13px;
+  }
+  .hhr-insulin .section-heading {
+    padding: 10px 13px;
+  }
+  .hhr-insulin td {
+    height: 37px;
+    padding: 5px 12px;
+  }
+  .hhr-insulin .meal td {
+    height: 38px;
+  }
+  .hhr-insulin .basal td {
+    height: 34px;
+  }
+  .hhr-insulin .editable,
+  .hhr-insulin .field input {
+    display: none !important;
+  }
+  .hhr-insulin .print-value {
+    display: block;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    min-width: 0;
+    min-height: 1.2em;
+    font-size: inherit;
+    line-height: 1.3;
+  }
+  .hhr-insulin .field .print-value {
+    flex: 1;
+    font-size: 13px;
+    padding: 5px 1px;
+  }
+  .hhr-insulin .print-value.range {
+    font-size: 19px;
+  }
+  .hhr-insulin .print-value.dose {
+    font-size: 18px;
+  }
+  .hhr-insulin .print-value.long {
+    font-size: 13px;
+  }
+  .hhr-insulin .print-value.meal-name {
+    font-size: 15px;
+  }
+  .hhr-insulin .print-value.meal-dose {
+    font-size: 20px;
+  }
+  .hhr-insulin .note {
+    padding: 9px 11px;
+    margin-bottom: 12px;
+    break-inside: avoid;
+  }
+  .hhr-insulin .note .print-value {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  .hhr-insulin .signature {
+    break-inside: avoid;
+  }
+  .hhr-insulin .signature .print-value {
+    font-size: 11px;
+  }
+  .hhr-insulin .footer {
+    padding-top: 9px;
+  }
+  .hhr-insulin .sheet.has-basal h1 {
+    margin-bottom: 11px;
+  }
+  .hhr-insulin .sheet.has-basal .patient {
+    margin-bottom: 12px;
+  }
+  .hhr-insulin .sheet.has-basal .identity {
+    margin-bottom: 12px;
+  }
+  .hhr-insulin .sheet.has-basal .panel {
+    margin-bottom: 11px;
+  }
+  .hhr-insulin .sheet.has-basal td {
+    height: 33px;
+  }
+  .hhr-insulin .sheet.has-basal .meal td {
+    height: 34px;
+  }
+  .hhr-insulin .sheet.has-basal .section-heading {
+    padding: 7px 12px;
+  }
+  .hhr-insulin .sheet.has-basal .logo {
+    width: 56px;
+    height: 56px;
+  }
+  .hhr-insulin .sheet.has-basal .identity {
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .hhr-insulin .sheet.has-basal h1 {
+    font-size: 24px;
+  }
+  .hhr-insulin .sheet.has-basal td,
+  .hhr-insulin .sheet.has-basal .meal td {
+    height: 30px;
+    padding: 4px 12px;
+  }
+  .hhr-insulin .sheet.has-basal .print-value.range,
+  .hhr-insulin .sheet.has-basal .print-value.dose {
+    font-size: 18px;
+    line-height: 1.15;
+  }
+  .hhr-insulin .sheet.has-basal .print-value.long {
+    font-size: 12.5px;
+    line-height: 1.25;
+  }
+  .hhr-insulin .sheet.has-basal .print-value.meal-dose {
+    font-size: 19px;
+  }
+  .hhr-insulin .sheet.has-basal .panel {
+    margin-bottom: 10px;
+  }
+}
+.hhr-insulin /* Compact editing and print layout. */
+.cell-content {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.hhr-insulin .cell-content .editable {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+}
+.hhr-insulin .remove-row {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #cddae2;
+  border-radius: 5px;
+  background: transparent;
+  color: #6b7e8a;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+}
+.hhr-insulin .remove-row:hover {
+  background: #fff1ee;
+  border-color: #d9aaa1;
+  color: #9a4032;
+}
+.hhr-insulin .row-tools {
+  padding: 4px 11px;
+  border-top: 1px solid #e4ebef;
+  background: #fff;
+}
+.hhr-insulin .row-tools button {
+  padding: 3px 0;
+  background: transparent;
+  border: 0;
+  color: #557284;
+  font-size: 11px;
+}
+.hhr-insulin .row-tools button:hover {
+  color: #173f59;
+  text-decoration: underline;
+}
+.hhr-insulin .note {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0 0 10px;
+}
+.hhr-insulin .note textarea {
+  font-size: 10px;
+  line-height: 1.4;
+  padding: 0;
+  border: 1px solid transparent;
+}
+.hhr-insulin .note textarea:hover,
+.hhr-insulin .note textarea:focus {
+  border-color: #c3d4de;
+}
+.hhr-insulin .footer {
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.hhr-insulin .toolbar {
+  padding: 12px 20px;
+}
+.hhr-insulin .toolbar-sub {
+  margin-top: 3px;
+}
+.hhr-insulin .settings {
+  margin-top: 12px;
+  padding: 12px 17px;
+}
+.hhr-insulin .settings-head {
+  margin-bottom: 10px;
+}
+.hhr-insulin .selectors {
+  gap: 13px;
+}
+.hhr-insulin .control label {
+  margin-bottom: 5px;
+}
+.hhr-insulin .control select,
+.hhr-insulin .control input {
+  padding: 8px;
+}
+.hhr-insulin .helper {
+  margin-top: 9px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.hhr-insulin .status {
+  margin-top: 5px;
+  font-size: 11px;
+  min-height: 15px;
+}
+.hhr-insulin .logo-option,
+.hhr-insulin .sources {
+  margin-top: 7px;
+}
+.hhr-insulin .sheet {
+  min-height: 0;
+  margin: 12px auto 24px;
+  padding: 25px 38px 20px;
+}
+.hhr-insulin .identity {
+  padding-bottom: 10px;
+  margin-bottom: 13px;
+  gap: 14px;
+}
+.hhr-insulin .logo {
+  width: 56px;
+  height: 56px;
+}
+.hhr-insulin h1 {
+  font-size: 25px;
+  margin-bottom: 12px;
+}
+.hhr-insulin .patient {
+  margin-bottom: 13px;
+  gap: 6px 18px;
+}
+.hhr-insulin .field {
+  min-height: 28px;
+}
+.hhr-insulin .panel {
+  margin-bottom: 11px;
+  border-radius: 7px;
+}
+.hhr-insulin .section-heading {
+  padding: 8px 12px;
+}
+.hhr-insulin h2 {
+  font-size: 16px;
+}
+.hhr-insulin .medication,
+.hhr-insulin .section-sub {
+  margin-top: 3px;
+  font-size: 11px;
+}
+.hhr-insulin th {
+  padding: 5px 12px;
+}
+.hhr-insulin td,
+.hhr-insulin .meal td,
+.hhr-insulin .basal td {
+  height: 34px;
+  padding: 3px 11px;
+}
+.hhr-insulin .editable {
+  padding: 3px 2px;
+  line-height: 1.2;
+}
+.hhr-insulin .range {
+  font-size: 18px;
+}
+.hhr-insulin .dose {
+  font-size: 17px;
+}
+.hhr-insulin .dose.long {
+  font-size: 12px;
+}
+.hhr-insulin .meal-name {
+  font-size: 14px;
+}
+.hhr-insulin .meal-dose {
+  font-size: 18px;
+}
+.hhr-insulin .signature {
+  margin-top: 0;
+  padding-bottom: 0;
+}
+@media screen and (max-width: 840px) {
+  .hhr-insulin .sheet {
+    width: calc(100% - 24px);
+    padding: 22px;
+  }
+  .hhr-insulin .settings {
+    margin: 12px 12px 0;
+  }
+}
+@media screen and (max-width: 520px) {
+  .hhr-insulin .sheet {
+    padding: 18px 14px;
+  }
+  .hhr-insulin .settings {
+    padding: 13px;
+  }
+  .hhr-insulin .toolbar {
+    padding: 12px 15px;
+  }
+  .hhr-insulin .logo {
+    width: 46px;
+    height: 46px;
+  }
+  .hhr-insulin .hospital-name {
+    font-size: 14px;
+  }
+  .hhr-insulin .hospital-sub {
+    font-size: 9px;
+  }
+  .hhr-insulin .identity {
+    gap: 10px;
+  }
+  .hhr-insulin h1 {
+    font-size: 22px;
+  }
+  .hhr-insulin h2 {
+    font-size: 15px;
+  }
+  .hhr-insulin .range {
+    font-size: 15px;
+  }
+  .hhr-insulin .dose {
+    font-size: 16px;
+  }
+  .hhr-insulin .dose.long {
+    font-size: 12px;
+  }
+  .hhr-insulin td,
+  .hhr-insulin .meal td,
+  .hhr-insulin .basal td {
+    padding: 3px 7px;
+  }
+  .hhr-insulin .meal-name {
+    font-size: 13px;
+  }
+  .hhr-insulin .cell-content {
+    gap: 3px;
+  }
+  .hhr-insulin .remove-row {
+    flex-basis: 26px;
+    width: 26px;
+    height: 30px;
+  }
+  .hhr-insulin .row-tools {
+    padding: 5px 9px;
+  }
+  .hhr-insulin .note textarea {
+    font-size: 10px;
+  }
+}
+@media print {
+  .hhr-insulin .remove-row,
+  .hhr-insulin .row-tools,
+  .hhr-insulin .panel.empty {
+    display: none !important;
+  }
+  .hhr-insulin .cell-content {
+    display: block;
+  }
+  .hhr-insulin .sheet {
+    width: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .hhr-insulin .identity,
+  .hhr-insulin .sheet.has-basal .identity {
+    padding-bottom: 9px;
+    margin-bottom: 11px;
+  }
+  .hhr-insulin .logo,
+  .hhr-insulin .sheet.has-basal .logo {
+    width: 52px;
+    height: 52px;
+  }
+  .hhr-insulin h1,
+  .hhr-insulin .sheet.has-basal h1 {
+    font-size: 24px;
+    margin-bottom: 11px;
+  }
+  .hhr-insulin .patient,
+  .hhr-insulin .sheet.has-basal .patient {
+    margin-bottom: 12px;
+    gap: 6px 18px;
+  }
+  .hhr-insulin .field {
+    min-height: 27px;
+  }
+  .hhr-insulin .panel,
+  .hhr-insulin .sheet.has-basal .panel {
+    margin-bottom: 10px;
+  }
+  .hhr-insulin .section-heading,
+  .hhr-insulin .sheet.has-basal .section-heading {
+    padding: 7px 11px;
+  }
+  .hhr-insulin h2 {
+    font-size: 16px;
+  }
+  .hhr-insulin .section-sub,
+  .hhr-insulin .medication {
+    font-size: 10.5px;
+    margin-top: 3px;
+  }
+  .hhr-insulin th {
+    padding: 5px 11px;
+  }
+  .hhr-insulin td,
+  .hhr-insulin .meal td,
+  .hhr-insulin .basal td,
+  .hhr-insulin .sheet.has-basal td,
+  .hhr-insulin .sheet.has-basal .meal td {
+    height: 29px;
+    padding: 4px 11px;
+  }
+  .hhr-insulin .print-value.range,
+  .hhr-insulin .sheet.has-basal .print-value.range {
+    font-size: 17px;
+    line-height: 1.15;
+  }
+  .hhr-insulin .print-value.dose,
+  .hhr-insulin .sheet.has-basal .print-value.dose {
+    font-size: 17px;
+    line-height: 1.15;
+  }
+  .hhr-insulin .print-value.long,
+  .hhr-insulin .sheet.has-basal .print-value.long {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+  .hhr-insulin .print-value.meal-name {
+    font-size: 14px;
+  }
+  .hhr-insulin .print-value.meal-dose,
+  .hhr-insulin .sheet.has-basal .print-value.meal-dose {
+    font-size: 18px;
+  }
+  .hhr-insulin .note {
+    border: 0;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    margin: 0 0 10px;
+  }
+  .hhr-insulin .note .print-value {
+    font-size: 9px;
+    line-height: 1.35;
+  }
+  .hhr-insulin .footer {
+    margin-top: 9px;
+    padding-top: 7px;
+    font-size: 8px;
+  }
+  .hhr-insulin .signature {
+    padding-bottom: 0;
+  }
+}
+.hhr-insulin .switches {
+  display: flex;
+  gap: 9px 18px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e3ebef;
+}
+.hhr-insulin .switch-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  min-height: 30px;
+}
+.hhr-insulin .switch-control input {
+  position: absolute;
+  opacity: 0;
+  width: 35px;
+  height: 23px;
+  margin: 0;
+  inset-inline-start: 0;
+  cursor: pointer;
+}
+.hhr-insulin .switch-track {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 20px;
+  border-radius: 20px;
+  background: #9aaeb9;
+  border: 1px solid #8fa4af;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.hhr-insulin .switch-track:after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px #173b4a40;
+}
+.hhr-insulin .switch-control input:checked + .switch-track {
+  background: #187350;
+  border-color: #187350;
+}
+.hhr-insulin .switch-control input:checked + .switch-track:after {
+  left: 16px;
+}
+.hhr-insulin .switch-control input:focus-visible + .switch-track {
+  outline: 3px solid #3497c6;
+  outline-offset: 2px;
+}
+.hhr-insulin .switch-control small {
+  color: #617986;
+  font-size: 10px;
+  min-width: 15px;
+}
+.hhr-insulin .sensitivity-settings {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+  font-size: 12px;
+}
+.hhr-insulin .sensitivity-settings label {
+  font-weight: 650;
+}
+.hhr-insulin .sensitivity-settings select {
+  border: 1px solid #b9cdd8;
+  border-radius: 5px;
+  padding: 6px;
+  color: var(--ink);
+  background: white;
+  font-size: 12px;
+}
+.hhr-insulin .sensitivity-settings p {
+  flex-basis: 100%;
+  font-size: 11px;
+  margin: 0;
+  color: #88641e;
+  line-height: 1.45;
+}
+.hhr-insulin .section-heading {
+  position: relative;
+  padding-right: 42px;
+}
+.hhr-insulin .hide-panel {
+  position: absolute;
+  right: 9px;
+  top: 7px;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: 1px solid #bdd2dd;
+  background: transparent;
+  color: #587788;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+}
+.hhr-insulin .hide-panel:hover {
+  background: white;
+  color: #923c2a;
+}
+.hhr-insulin .sensitivity-table col:first-child {
+  width: 27%;
+}
+.hhr-insulin .sensitivity-table td,
+.hhr-insulin .sensitivity-table th {
+  border-right: 1px solid #dce8ef;
+  text-align: center;
+}
+.hhr-insulin .sensitivity-table td:last-child,
+.hhr-insulin .sensitivity-table th:last-child {
+  border-right: 0;
+}
+.hhr-insulin .sensitivity-table th {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  font-size: 10px;
+  letter-spacing: 0;
+  line-height: 1.25;
+  background: #eaf5fa;
+  padding: 6px;
+}
+.hhr-insulin .sensitivity-table td {
+  padding: 3px 7px;
+}
+.hhr-insulin .sensitivity-table .editable {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+}
+.hhr-insulin .sensitivity-table tr:nth-child(even) {
+  background: #f5f9fb;
+}
+.hhr-insulin .sensitivity-table .cell-content {
+  gap: 2px;
+}
+.hhr-insulin .sensitivity-table .remove-row {
+  flex-basis: 23px;
+  width: 23px;
+}
+.hhr-insulin .sensitivity-range {
+  font-weight: 750;
+}
+.hhr-insulin .sensitivity-table .print-value {
+  text-align: center;
+}
+@media screen and (max-width: 520px) {
+  .hhr-insulin .switches {
+    gap: 4px 10px;
+  }
+  .hhr-insulin .switch-control {
+    font-size: 11px;
+  }
+  .hhr-insulin .sensitivity-table th {
+    font-size: 9px;
+    padding: 5px 3px;
+  }
+  .hhr-insulin .sensitivity-table td {
+    padding: 3px;
+  }
+  .hhr-insulin .sensitivity-table .editable {
+    font-size: 13px;
+  }
+  .hhr-insulin .sensitivity-table .remove-row {
+    flex-basis: 20px;
+    width: 20px;
+  }
+  .hhr-insulin .section-heading {
+    padding-right: 38px;
+  }
+}
+@media print {
+  .hhr-insulin .hide-panel {
+    display: none !important;
+  }
+  .hhr-insulin .sensitivity-table .print-value {
+    font-size: 16px;
+    line-height: 1.15;
+    font-weight: 700;
+  }
+  .hhr-insulin .sensitivity-table th {
+    font-size: 10px;
+    padding: 5px;
+  }
+  .hhr-insulin .sensitivity-table td {
+    height: 28px;
+    padding: 4px 7px;
+  }
+  .hhr-insulin .section-heading,
+  .hhr-insulin .sheet.has-basal .section-heading {
+    padding-right: 11px;
+  }
+}
+.hhr-insulin .profiles {
+  margin-bottom: 12px;
+  border: 1px solid #dce6eb;
+  border-radius: 6px;
+  padding: 9px 11px;
+  font-size: 12px;
+  background: #fafcfd;
+}
+.hhr-insulin .profiles summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.hhr-insulin .profile-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+}
+.hhr-insulin .profile-line label {
+  font-size: 11px;
+  min-width: 42px;
+  font-weight: 650;
+}
+.hhr-insulin .profile-line input,
+.hhr-insulin .profile-line select {
+  flex: 1;
+  min-width: 140px;
+  padding: 7px;
+  border: 1px solid #bccfd9;
+  border-radius: 5px;
+  background: white;
+  font-size: 12px;
+  color: var(--ink);
+}
+.hhr-insulin .profiles button {
+  padding: 7px 9px;
+  font-size: 11px;
+  border-color: #c5d5de;
+  background: white;
+  color: #30576d;
+}
+.hhr-insulin .profiles button:hover {
+  background: #eaf3f8;
+}
+.hhr-insulin .profile-portable {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+}
+.hhr-insulin .profile-portable > span {
+  font-size: 10px;
+  line-height: 1.4;
+  color: #667e8c;
+  flex-basis: 100%;
+}
+.hhr-insulin .profile-portable > label {
+  cursor: pointer;
+  font-size: 11px;
+  color: #30576d;
+  text-decoration: underline;
+}
+.hhr-insulin .profile-portable input {
+  max-width: 170px;
+  margin-left: 5px;
+  font-size: 10px;
+}
+.hhr-insulin .basal-settings {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+  font-size: 12px;
+}
+.hhr-insulin .basal-settings label {
+  font-weight: 650;
+}
+.hhr-insulin .basal-settings select {
+  padding: 6px;
+  border: 1px solid #bccfd9;
+  border-radius: 5px;
+  background: white;
+  color: var(--ink);
+}
+.hhr-insulin .basal-settings span {
+  font-size: 10px;
+  color: #607988;
+}
+@media screen and (max-width: 520px) {
+  .hhr-insulin .profile-line input,
+  .hhr-insulin .profile-line select {
+    flex-basis: calc(100% - 55px);
+  }
+  .hhr-insulin .profile-line button {
+    padding: 8px 10px;
+  }
+  .hhr-insulin .profile-portable input {
+    display: block;
+    margin: 5px 0 0;
+  }
+}
+@media print {
+  .hhr-insulin .sheet {
+    width: 180mm;
+    margin: 0 auto;
+    zoom: var(--print-scale, 1);
+  }
+}
+.hhr-insulin .paper-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #e5edf2;
+}
+.hhr-insulin .paper-control select {
+  padding: 8px 6px;
+  border: 1px solid #829ba9;
+  border-radius: 6px;
+  background: #294a60;
+  color: white;
+  font-size: 12px;
+}
+.hhr-insulin .profile-default {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.hhr-insulin .profile-default span {
+  font-size: 10px;
+  color: #527386;
+}
+.hhr-insulin .text-export {
+  margin-top: 9px;
+  font-size: 11px;
+  color: #527386;
+}
+.hhr-insulin .text-export summary {
+  cursor: pointer;
+}
+.hhr-insulin .text-export label {
+  display: block;
+  margin: 9px 0 5px;
+  font-weight: 650;
+}
+.hhr-insulin .text-export textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  min-height: 100px;
+  padding: 8px;
+  border: 1px solid #bacfdc;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: white;
+}
+.hhr-insulin .text-export p {
+  margin: 5px 0;
+  font-size: 10px;
+}
+.hhr-insulin .tools {
+  align-items: center;
+}

@@ -1,0 +1,1188 @@
+// packages/insulin-core/src/catalog.js
+var RAPID_INSULINS = Object.freeze({
+  apidra: Object.freeze({ name: "Apidra", ingredient: "glulisina", strength: 100 }),
+  novorapid: Object.freeze({ name: "NovoRapid", ingredient: "aspart", strength: 100 }),
+  humalog100: Object.freeze({ name: "Humalog", ingredient: "lispro", strength: 100 }),
+  humalog200: Object.freeze({ name: "Humalog", ingredient: "lispro", strength: 200 }),
+  fiasp: Object.freeze({ name: "Fiasp", ingredient: "aspart", strength: 100 }),
+  regular: Object.freeze({ name: "Insulina regular", ingredient: "humana regular", strength: 100 }),
+  custom: Object.freeze({ name: "Otra insulina", ingredient: "", strength: null })
+});
+var BASAL_INSULINS = Object.freeze({
+  nph: Object.freeze({
+    name: "NPH",
+    ingredient: "humana is\xF3fana",
+    strength: 100,
+    action: "intermedia"
+  }),
+  glargine100: Object.freeze({
+    name: "Lantus",
+    ingredient: "glargina",
+    strength: 100,
+    action: "prolongada"
+  }),
+  glargine300: Object.freeze({
+    name: "Toujeo",
+    ingredient: "glargina",
+    strength: 300,
+    action: "prolongada"
+  }),
+  degludec100: Object.freeze({
+    name: "Tresiba",
+    ingredient: "degludec",
+    strength: 100,
+    action: "ultralarga"
+  }),
+  degludec200: Object.freeze({
+    name: "Tresiba",
+    ingredient: "degludec",
+    strength: 200,
+    action: "ultralarga"
+  }),
+  detemir: Object.freeze({
+    name: "Levemir",
+    ingredient: "detemir",
+    strength: 100,
+    action: "prolongada"
+  }),
+  custom: Object.freeze({
+    name: "Otra insulina basal",
+    ingredient: "",
+    strength: null,
+    action: ""
+  })
+});
+var SENSITIVITY_NAMES = Object.freeze([
+  "Insulinosensible",
+  "Normal",
+  "Insulinorresistente"
+]);
+var PAPER_SIZES = Object.freeze({
+  A4: Object.freeze({ name: "A4", cssName: "A4", widthMm: 210, heightMm: 297 }),
+  Letter: Object.freeze({ name: "Carta", cssName: "letter", widthMm: 215.9, heightMm: 279.4 })
+});
+
+// packages/insulin-core/src/presets.js
+var DEFAULT_NOTE = "La dosis de refuerzo se suma a la dosis fija indicada para esa comida. Si la HGT es menor de 80 mg/dL, no aplicar el bolo precomidas y avisar al equipo de salud.";
+function createSensitivityPreset() {
+  return {
+    ranges: ["\u2264140", "141\u2013180", "181\u2013220", "221\u2013260", "261\u2013300", "301\u2013350", "351\u2013400", ">400"],
+    doses: [
+      ["0", "0", "0"],
+      ["0", "2", "4"],
+      ["2", "4", "6"],
+      ["4", "6", "8"],
+      ["6", "8", "10"],
+      ["8", "10", "12"],
+      ["10", "12", "14"],
+      ["12", "14", "16"]
+    ],
+    note: ""
+  };
+}
+function createBlankRapidProfile() {
+  return {
+    ranges: ["< 80", "80\u2013149", "150\u2013199", "200\u2013249", "250\u2013299", "300\u2013349", "\u2265 350"],
+    doses: Array(7).fill(""),
+    meals: ["Desayuno", "Almuerzo", "Once", "Cena"],
+    fixed: Array(4).fill(""),
+    note: "",
+    custom: "",
+    useSensitivity: false,
+    sensitivityView: "all",
+    sensitivity: createSensitivityPreset()
+  };
+}
+function createApidraProfile() {
+  return {
+    ...createBlankRapidProfile(),
+    doses: [
+      "Omitir la dosis precomidas y avisar",
+      "0 UI de refuerzo (solo dosis fija)",
+      "+1 UI",
+      "+2 UI",
+      "+3 UI",
+      "+4 UI",
+      "+5 UI"
+    ],
+    fixed: ["4 UI", "4 UI", "2 UI", "4 UI"],
+    note: DEFAULT_NOTE
+  };
+}
+function createBasalProfile(insulinId) {
+  return {
+    times: ["AM", insulinId === "nph" ? "22:00\u201323:00" : "Noche"],
+    doses: ["", ""],
+    custom: "",
+    frequency: "1"
+  };
+}
+function createInitialRegimen() {
+  return {
+    rapid: "apidra",
+    basal: "none",
+    rapidProfiles: { apidra: createApidraProfile() },
+    basalProfiles: {},
+    showCorrection: true,
+    showFixed: true,
+    showBasal: false
+  };
+}
+
+// packages/insulin-core/src/schema.js
+var SCHEMA_VERSION = 1;
+var LIMITS = Object.freeze({
+  maxRows: 200,
+  maxProfiles: 500,
+  maxTextLength: 5e3,
+  maxImportBytes: 2 * 1024 * 1024
+});
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+function object(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function text(value, max = LIMITS.maxTextLength) {
+  return typeof value === "string" && value.length <= max;
+}
+function strings(value) {
+  return Array.isArray(value) && value.length <= LIMITS.maxRows && value.every((v) => text(v));
+}
+function flag(value) {
+  return value === void 0 || typeof value === "boolean";
+}
+function isValidRegimen(value) {
+  if (!object(value) || !Object.hasOwn(RAPID_INSULINS, value.rapid) || !(value.basal === "none" || Object.hasOwn(BASAL_INSULINS, value.basal)) || !object(value.rapidProfiles) || !object(value.basalProfiles))
+    return false;
+  if (!["showCorrection", "showFixed", "showBasal"].every((key) => flag(value[key]))) return false;
+  for (const [key, p] of Object.entries(value.rapidProfiles)) {
+    if (!Object.hasOwn(RAPID_INSULINS, key) || !object(p) || !strings(p.ranges) || !strings(p.doses) || p.ranges.length !== p.doses.length || !strings(p.meals) || !strings(p.fixed) || p.meals.length !== p.fixed.length || !text(p.note) || !text(p.custom) || !flag(p.useSensitivity))
+      return false;
+    if (p.sensitivityView !== void 0 && !["all", "0", "1", "2"].includes(p.sensitivityView))
+      return false;
+    if (p.sensitivity !== void 0) {
+      const t = p.sensitivity;
+      if (!object(t) || !strings(t.ranges) || !Array.isArray(t.doses) || t.ranges.length !== t.doses.length || !t.doses.every((d) => strings(d) && d.length === 3) || !text(t.note))
+        return false;
+    }
+  }
+  for (const [key, b] of Object.entries(value.basalProfiles)) {
+    if (!Object.hasOwn(BASAL_INSULINS, key) || !object(b) || !strings(b.times) || !strings(b.doses) || b.times.length !== b.doses.length || !text(b.custom) || b.frequency !== void 0 && !["1", "2", "custom"].includes(b.frequency))
+      return false;
+  }
+  return Object.hasOwn(value.rapidProfiles, value.rapid) && (value.basal === "none" || Object.hasOwn(value.basalProfiles, value.basal));
+}
+function normalizeRegimen(value) {
+  if (!isValidRegimen(value)) throw new TypeError("Esquema de insulina inv\xE1lido.");
+  const rapidProfiles = Object.fromEntries(
+    Object.entries(value.rapidProfiles).map(([id, p]) => [
+      id,
+      {
+        ranges: [...p.ranges],
+        doses: [...p.doses],
+        meals: [...p.meals],
+        fixed: [...p.fixed],
+        note: p.note,
+        custom: p.custom,
+        useSensitivity: p.useSensitivity ?? false,
+        sensitivityView: p.sensitivityView ?? "all",
+        sensitivity: p.sensitivity ? {
+          ranges: [...p.sensitivity.ranges],
+          doses: p.sensitivity.doses.map((d) => [...d]),
+          note: p.sensitivity.note
+        } : createSensitivityPreset()
+      }
+    ])
+  );
+  const basalProfiles = Object.fromEntries(
+    Object.entries(value.basalProfiles).map(([id, b]) => [
+      id,
+      {
+        times: [...b.times],
+        doses: [...b.doses],
+        custom: b.custom,
+        frequency: b.frequency ?? (b.times.length === 1 ? "1" : b.times.length === 2 ? "2" : "custom")
+      }
+    ])
+  );
+  return {
+    rapid: value.rapid,
+    basal: value.basal,
+    rapidProfiles,
+    basalProfiles,
+    showCorrection: value.showCorrection ?? true,
+    showFixed: value.showFixed ?? true,
+    showBasal: value.showBasal ?? value.basal !== "none"
+  };
+}
+function isValidProfile(item) {
+  return object(item) && text(item.id, 100) && item.id.length > 0 && text(item.name, 80) && item.name.trim().length > 0 && (item.updated === void 0 || Number.isFinite(item.updated) && item.updated >= 0) && isValidRegimen(item.regimen);
+}
+function normalizeProfile(item) {
+  if (!isValidProfile(item)) throw new TypeError("Perfil de insulina inv\xE1lido.");
+  return {
+    id: item.id,
+    name: item.name.trim(),
+    updated: item.updated ?? 0,
+    regimen: normalizeRegimen(item.regimen)
+  };
+}
+function isValidPreferences(p) {
+  return object(p) && text(p.defaultId, 100) && Object.hasOwn(PAPER_SIZES, p.paperSize) && Number.isFinite(p.updated) && p.updated >= 0;
+}
+function normalizePreferences(p) {
+  return isValidPreferences(p) ? { defaultId: p.defaultId, paperSize: p.paperSize, updated: p.updated } : { defaultId: "", paperSize: "A4", updated: 0 };
+}
+function decodeProfileFile(json) {
+  if (typeof json !== "string" || new TextEncoder().encode(json).length > LIMITS.maxImportBytes)
+    throw new TypeError("Archivo demasiado grande.");
+  const data = JSON.parse(json);
+  if (!object(data) || data.format !== "hhr-insulin-profiles" || data.version !== SCHEMA_VERSION || !Array.isArray(data.profiles) || data.profiles.length > LIMITS.maxProfiles || !data.profiles.every(isValidProfile))
+    throw new TypeError("Archivo de perfiles HHR inv\xE1lido.");
+  const profiles = data.profiles.map(normalizeProfile);
+  if (new Set(profiles.map((p) => p.id)).size !== profiles.length)
+    throw new TypeError("El archivo contiene identificadores duplicados.");
+  return {
+    format: data.format,
+    version: SCHEMA_VERSION,
+    profiles,
+    defaultId: typeof data.defaultId === "string" ? data.defaultId : ""
+  };
+}
+
+// packages/insulin-core/src/text.js
+function oneLine(value) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+function doseText(value) {
+  const text2 = oneLine(value);
+  return text2 ? /^[+−-]?\d+(?:[.,]\d+)?$/.test(text2) ? `${text2} UI` : text2 : "dosis no especificada";
+}
+function getCurrentNote(state) {
+  const p = state.rapidProfiles[state.rapid];
+  if (p.useSensitivity) return p.sensitivity?.note ?? "";
+  if (p.note === DEFAULT_NOTE) {
+    if (state.showCorrection === false) return "";
+    if (state.showFixed === false) return DEFAULT_NOTE.slice(DEFAULT_NOTE.indexOf("Si la HGT"));
+  }
+  return p.note;
+}
+function formatRegimenParagraph(input) {
+  const state = normalizeRegimen(input), p = state.rapidProfiles[state.rapid], parts = [];
+  const name = state.rapid === "custom" ? oneLine(p.custom) || "insulina para comidas no especificada" : RAPID_INSULINS[state.rapid].name;
+  if (state.basal !== "none" && state.showBasal) {
+    const b = state.basalProfiles[state.basal], count = b.frequency === "custom" ? b.times.length : Number(b.frequency);
+    if (count) {
+      const med = state.basal === "custom" ? oneLine(b.custom) || "insulina basal no especificada" : BASAL_INSULINS[state.basal].name;
+      const frequency = b.frequency === "1" ? "1 vez al d\xEDa" : b.frequency === "2" ? "2 veces al d\xEDa" : "horarios personalizados";
+      const rows = Array.from(
+        { length: count },
+        (_, i) => `${oneLine(b.times[i]) || "horario no especificado"}: ${doseText(b.doses[i])}`
+      );
+      parts.push(`Insulina basal ${med}, ${frequency}: ${rows.join("; ")}`);
+    }
+  }
+  if (state.showCorrection) {
+    if (p.useSensitivity && p.sensitivity.ranges.length) {
+      const columns = p.sensitivityView === "all" ? [0, 1, 2] : [Number(p.sensitivityView)];
+      const rows = p.sensitivity.ranges.map(
+        (range, i) => `HGT ${oneLine(range) || "rango no especificado"} mg/dL: ${columns.map((c) => `${columns.length > 1 ? `${SENSITIVITY_NAMES[c].toLowerCase()} ` : ""}${doseText(p.sensitivity.doses[i][c])}`).join(", ")}`
+      );
+      parts.push(
+        `Correcci\xF3n seg\xFAn sensibilidad con ${name}${columns.length === 1 ? ` (perfil ${SENSITIVITY_NAMES[columns[0]].toLowerCase()})` : ""}: ${rows.join("; ")}`
+      );
+    } else if (!p.useSensitivity && p.ranges.length) {
+      const rows = p.ranges.map(
+        (range, i) => `HGT ${oneLine(range) || "rango no especificado"} mg/dL: ${doseText(!state.showFixed && p.doses[i] === "0 UI de refuerzo (solo dosis fija)" ? "0 UI de refuerzo" : p.doses[i])}`
+      );
+      parts.push(`Refuerzo seg\xFAn HGT con ${name}: ${rows.join("; ")}`);
+    }
+  }
+  if (state.showFixed && p.meals.length)
+    parts.push(
+      `Dosis fija precomidas de ${name}: ${p.meals.map((meal, i) => `${oneLine(meal) || "horario no especificado"}: ${doseText(p.fixed[i])}`).join("; ")}`
+    );
+  const note = oneLine(getCurrentNote(state));
+  if (note) parts.push(note);
+  return `Esquema de insulinoterapia: ${parts.length ? parts.map((text2) => text2.replace(/[.;\s]+$/, "")).join(". ") : "sin cuadros activos con filas"}.`;
+}
+
+// packages/insulin-core/src/paper.js
+function getPaperSettings(size = "A4") {
+  if (!Object.hasOwn(PAPER_SIZES, size)) throw new TypeError("Formato de papel inv\xE1lido.");
+  const paper = PAPER_SIZES[size];
+  return { ...paper, contentWidthMm: paper.widthMm - 30, contentHeightMm: paper.heightMm - 22 };
+}
+function getPrintScale(heightPx, size = "A4") {
+  if (!Number.isFinite(heightPx) || heightPx <= 0) return 1;
+  return Math.min(1, (getPaperSettings(size).contentHeightMm - 1) * 96 / 25.4 / heightPx);
+}
+function createPaperCss(size = "A4") {
+  const paper = getPaperSettings(size);
+  return `@page{size:${paper.cssName};margin:12mm 15mm 10mm}@media print{.hhr-insulin .sheet{width:${paper.contentWidthMm}mm}}`;
+}
+
+// packages/insulin-core/src/profiles.js
+function read(storage, key, fallback) {
+  try {
+    const value = storage?.getItem(key);
+    return value === null || value === void 0 ? fallback : JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+var ProfileRepository = class {
+  constructor({
+    storage = null,
+    namespace = "hhr-insulin-profiles-v1",
+    seed = [],
+    preferences = null,
+    clock = Date.now,
+    createId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  } = {}) {
+    this.storage = storage;
+    this.namespace = namespace;
+    this.clock = clock;
+    this.createId = createId;
+    this.persistent = false;
+    const removed = read(storage, `${namespace}-removed`, {});
+    this.removed = removed && typeof removed === "object" && !Array.isArray(removed) ? Object.fromEntries(Object.entries(removed).filter(([, v]) => Number.isFinite(v))) : {};
+    const profiles = /* @__PURE__ */ new Map();
+    const stored = read(storage, namespace, []);
+    for (const list of [seed, stored]) {
+      if (!Array.isArray(list)) continue;
+      for (const item of list.slice(0, LIMITS.maxProfiles)) {
+        if (!isValidProfile(item)) continue;
+        const p = normalizeProfile(item), previous = profiles.get(p.id);
+        if (!previous || p.updated > previous.updated) profiles.set(p.id, p);
+      }
+    }
+    this.profiles = [...profiles.values()].filter(
+      (p) => !(Number(this.removed[p.id]) >= p.updated)
+    );
+    const embedded = normalizePreferences(preferences), local = read(storage, `${namespace}-preferences`, null);
+    this.preferences = isValidPreferences(local) && local.updated >= embedded.updated ? normalizePreferences(local) : embedded;
+    if (!this.profiles.some((p) => p.id === this.preferences.defaultId))
+      this.preferences.defaultId = "";
+  }
+  list() {
+    return clone(this.profiles);
+  }
+  get(id) {
+    const p = this.profiles.find((item) => item.id === id);
+    return p ? clone(p) : null;
+  }
+  getPreferences() {
+    return clone(this.preferences);
+  }
+  save(name, regimen, { id } = {}) {
+    if (id && !this.profiles.some((p2) => p2.id === id)) throw new RangeError("Perfil inexistente.");
+    if (!id && this.profiles.length >= LIMITS.maxProfiles)
+      throw new RangeError("Se alcanz\xF3 el m\xE1ximo de perfiles.");
+    const p = normalizeProfile({ id: id ?? this.createId(), name, updated: this.clock(), regimen });
+    const index = this.profiles.findIndex((item) => item.id === p.id);
+    if (index < 0) this.profiles.push(p);
+    else this.profiles[index] = p;
+    delete this.removed[p.id];
+    this.persist();
+    return clone(p);
+  }
+  remove(id) {
+    if (!this.profiles.some((p) => p.id === id)) return false;
+    this.profiles = this.profiles.filter((p) => p.id !== id);
+    this.removed[id] = this.clock();
+    if (this.preferences.defaultId === id) {
+      this.preferences.defaultId = "";
+      this.preferences.updated = this.clock();
+    }
+    this.persist();
+    return true;
+  }
+  setDefault(id = "") {
+    if (id && !this.profiles.some((p) => p.id === id)) throw new RangeError("Perfil inexistente.");
+    this.preferences.defaultId = id;
+    this.preferences.updated = this.clock();
+    this.persist();
+  }
+  setPaperSize(size) {
+    const next = { ...this.preferences, paperSize: size, updated: this.clock() };
+    if (!isValidPreferences(next)) throw new TypeError("Formato de papel inv\xE1lido.");
+    this.preferences = next;
+    this.persist();
+  }
+  initialRegimen(fallback = createInitialRegimen()) {
+    return this.get(this.preferences.defaultId)?.regimen ?? normalizeProfile({ id: "fallback", name: "Fallback", regimen: fallback }).regimen;
+  }
+  export() {
+    return JSON.stringify(
+      {
+        format: "hhr-insulin-profiles",
+        version: SCHEMA_VERSION,
+        profiles: this.list(),
+        defaultId: this.preferences.defaultId
+      },
+      null,
+      2
+    );
+  }
+  import(json) {
+    const data = decodeProfileFile(json), next = new Map(this.profiles.map((p) => [p.id, p]));
+    for (const p of data.profiles) {
+      const old = next.get(p.id);
+      if (!old || p.updated > old.updated) next.set(p.id, p);
+    }
+    if (next.size > LIMITS.maxProfiles) throw new RangeError("Se alcanz\xF3 el m\xE1ximo de perfiles.");
+    this.profiles = [...next.values()];
+    for (const p of data.profiles) delete this.removed[p.id];
+    if (data.defaultId && next.has(data.defaultId)) {
+      this.preferences.defaultId = data.defaultId;
+      this.preferences.updated = this.clock();
+    }
+    this.persist();
+    return data.profiles.length;
+  }
+  persist() {
+    try {
+      if (!this.storage) throw new Error("No storage");
+      this.storage.setItem(this.namespace, JSON.stringify(this.profiles));
+      this.storage.setItem(`${this.namespace}-removed`, JSON.stringify(this.removed));
+      this.storage.setItem(`${this.namespace}-preferences`, JSON.stringify(this.preferences));
+      this.persistent = true;
+    } catch {
+      this.persistent = false;
+    }
+    return this.persistent;
+  }
+};
+
+// packages/insulin-planner/src/template.js
+var TEMPLATE = '<style id="paperStyle"></style>\n<div class="toolbar"><div class="toolbar-inner"><div class="toolbar-title">Esquema de Insulinoterapia<span class="toolbar-sub">Hospital Hanga Roa \xB7 impresi\xF3n Carta / A4 \xB7 funciona sin internet</span></div><div class="tools"><button type="button" id="restoreBtn" title="Recupera las filas y dosis originales de Apidra; conserva los datos del paciente y el logo">Restablecer plantilla</button><button type="button" id="saveBtn">Guardar HTML editable</button><button type="button" id="copyTextBtn">Copiar esquema en texto</button><label class="paper-control" for="paperSize">Papel<select id="paperSize"><option value="A4">A4</option><option value="Letter">Carta</option></select></label><button type="button" id="printBtn" class="primary">Imprimir / guardar PDF</button></div></div></div>\n<section class="settings" aria-label="Configuraci\xF3n del esquema"><div class="settings-head"><strong>Configurar insulinas</strong><span class="badge" id="profileBadge">Perfil Apidra original</span></div>\n<details class="profiles" open><summary>Mis perfiles de insulina</summary><div class="profile-line"><label for="profileName">Nombre</label><input id="profileName" placeholder="Ej.: NPH ma\xF1ana / noche + Apidra" maxlength="80" autocomplete="off"><button id="storeProfile" type="button">Guardar como nuevo</button></div><div class="profile-line"><label for="profileSelect">Perfil</label><select id="profileSelect"><option value="">Seleccionar perfil guardado</option></select><button id="loadProfile" type="button">Cargar</button><button id="updateProfile" type="button">Actualizar</button><button id="deleteProfile" type="button">Eliminar</button></div><div class="profile-default"><button type="button" id="setDefaultProfile">Usar como predeterminado</button><button type="button" id="clearDefaultProfile">Quitar predeterminado</button><span id="defaultProfileLabel" role="status">Inicio: sin perfil predeterminado</span></div><div class="profile-portable"><button type="button" id="exportProfiles">Exportar perfiles</button><label for="importProfiles">Importar perfiles<input id="importProfiles" type="file" accept="application/json,.json"></label><span>Guardados en este navegador y al descargar el HTML. Los perfiles contienen las pautas, sin nombre, RUT ni fecha del paciente.</span></div></details>\n<div class="selectors"><div class="control"><label for="basalSelect">Insulina basal \xB7 lenta / ultralenta</label><select id="basalSelect"><option value="none">Sin insulina basal en esta hoja</option><optgroup label="Lenta / ultralenta"><option value="glargine100">Lantus \xB7 glargina \xB7 U-100</option><option value="glargine300">Toujeo \xB7 glargina \xB7 U-300</option><option value="degludec100">Tresiba \xB7 degludec \xB7 U-100</option><option value="degludec200">Tresiba \xB7 degludec \xB7 U-200</option><option value="detemir">Detemir \xB7 U-100 (Levemir)</option></optgroup><optgroup label="Intermedia"><option value="nph">NPH \xB7 humana \xB7 U-100</option></optgroup><option value="custom">Otra insulina basal (especificar)</option></select><div class="custom-control" id="basalCustomWrap" hidden><label for="basalCustom">Nombre de la insulina</label><input id="basalCustom" placeholder="Nombre de la insulina" autocomplete="off"></div></div>\n<div class="control"><label for="rapidSelect">Insulina para comidas y refuerzo</label><select id="rapidSelect"><option value="apidra">Apidra \xB7 glulisina \xB7 U-100</option><option value="novorapid">NovoRapid \xB7 aspart \xB7 U-100</option><option value="humalog100">Humalog \xB7 lispro \xB7 U-100</option><option value="humalog200">Humalog \xB7 lispro \xB7 U-200</option><option value="fiasp">Fiasp \xB7 aspart \xB7 U-100</option><option value="regular">Regular / cristalina \xB7 humana \xB7 U-100</option><option value="custom">Otra insulina (especificar)</option></select><div class="custom-control" id="rapidCustomWrap" hidden><label for="rapidCustom">Nombre de la insulina</label><input id="rapidCustom" placeholder="Nombre de la insulina" autocomplete="off"></div></div></div>\n<div class="switches" aria-label="Cuadros incluidos"><label class="switch-control"><input type="checkbox" switch role="switch" id="showBasal"><span class="switch-track" aria-hidden="true"></span><span>Insulina basal</span><small data-state-for="showBasal">Off</small></label><label class="switch-control"><input type="checkbox" switch role="switch" id="showCorrection" checked><span class="switch-track" aria-hidden="true"></span><span>Cuadro seg\xFAn HGT</span><small data-state-for="showCorrection">On</small></label><label class="switch-control"><input type="checkbox" switch role="switch" id="showFixed" checked><span class="switch-track" aria-hidden="true"></span><span>Cuadro dosis fija</span><small data-state-for="showFixed">On</small></label><label class="switch-control"><input type="checkbox" switch role="switch" id="sensitivityToggle"><span class="switch-track" aria-hidden="true"></span><span>Correcci\xF3n por sensibilidad</span><small data-state-for="sensitivityToggle">Off</small></label></div>\n<div class="basal-settings" id="basalSettings" hidden><label for="basalFrequency">Frecuencia basal</label><select id="basalFrequency"><option value="1">1 vez al d\xEDa</option><option value="2">2 veces al d\xEDa</option><option value="custom">Horarios personalizados</option></select><span>Complete la dosis en UI y el horario de cada administraci\xF3n.</span></div>\n<div class="sensitivity-settings" id="sensitivitySettings" hidden><label for="sensitivityView">Vista de la pauta correccional</label><select id="sensitivityView"><option value="all">Tabla completa \xB7 3 sensibilidades</option><option value="0">Insulinosensible</option><option value="1">Normal</option><option value="2">Insulinorresistente</option></select><p id="boundaryNotice">La imagen deja 140 mg/dL sin rango (&lt;140 y 141\u2013180). Revise ese l\xEDmite antes de utilizar la pauta; los rangos son editables.</p></div>\n<p class="helper">Edite la hoja y quite filas con \xD7. Cada insulina conserva su pauta. Las otras insulinas comienzan con dosis vac\xEDas.</p><p class="status" id="status" role="status" aria-live="polite">Apidra: perfil original cargado. La dosis de refuerzo se suma a la dosis fija.</p>\n<details class="text-export" id="textExport"><summary>Texto continuo para evoluci\xF3n / epicrisis / enfermer\xEDa</summary><label for="schemeText">Esquema en un solo p\xE1rrafo</label><textarea id="schemeText" rows="5" readonly></textarea><p>Se incluyen solo los cuadros activos, las dosis escritas y las indicaciones actuales.</p></details>\n<details class="logo-option"><summary>Cambiar logo institucional</summary><input type="file" id="logoUpload" accept="image/png,image/jpeg,image/webp" aria-label="Cargar otro logo"></details>\n<details class="sources"><summary>Referencias de nombres y tipos de insulina</summary><p><a href="https://www.fda.gov/consumers/free-publications-women/insulin" target="_blank" rel="noopener noreferrer">FDA \xB7 tipos de insulina</a> \xB7 <a href="https://www.ema.europa.eu/en/medicines/human/EPAR/novorapid" target="_blank" rel="noopener noreferrer">EMA \xB7 NovoRapid</a> \xB7 <a href="https://www.ema.europa.eu/en/medicines/human/EPAR/toujeo" target="_blank" rel="noopener noreferrer">EMA \xB7 Toujeo</a> \xB7 <a href="https://www.ema.europa.eu/en/medicines/human/EPAR/tresiba" target="_blank" rel="noopener noreferrer">EMA \xB7 Tresiba</a>. Las opciones no indican disponibilidad local ni equivalencia de dosis. El perfil Apidra reproduce el archivo proporcionado.</p></details>\n</section>\n<main class="sheet" id="printSheet"><header class="identity"><img class="logo" id="logoImage" src="data:image/png;base64,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" alt="Logo amarillo del Hospital Hanga Roa"><div><div class="hospital-name">HOSPITAL HANGA ROA</div><div class="hospital-sub">Servicio de Salud Metropolitano Oriente \xB7 Rapa Nui</div></div></header>\n<h1>Esquema de Insulinoterapia</h1>\n<section class="patient" aria-label="Identificaci\xF3n del paciente"><div class="field name"><label for="paciente">Nombre:</label><input id="paciente" autocomplete="off"></div><div class="field"><label for="rut">RUT:</label><input id="rut" autocomplete="off"></div><div class="field"><label for="fecha">Fecha:</label><input id="fecha" placeholder="DD-MM-AAAA" autocomplete="off"></div></section>\n<section class="panel basal" id="basalPanel" aria-labelledby="headingBasal" hidden><div class="section-heading"><button type="button" class="hide-panel" data-hide="showBasal" aria-label="Ocultar cuadro de insulina basal" title="Ocultar este cuadro">\xD7</button><h2 id="headingBasal">Insulina basal</h2><div class="medication" id="basalMedication"></div></div><table aria-label="Horarios y dosis de insulina basal"><colgroup><col><col></colgroup><thead><tr><th scope="col">HORARIO / MOMENTO</th><th scope="col">DOSIS \xB7 UI</th></tr></thead><tbody id="basalRows"></tbody></table><div class="row-tools"><button type="button" data-add="basal">+ A\xF1adir horario</button></div></section>\n<section class="panel" id="correctionPanel" aria-labelledby="headingCorrection"><div class="section-heading"><button type="button" class="hide-panel" data-hide="showCorrection" aria-label="Ocultar cuadro seg\xFAn HGT" title="Ocultar este cuadro">\xD7</button><h2 id="headingCorrection">Apidra: refuerzo seg\xFAn glicemia (HGT)</h2><div class="medication rapidMedication" hidden></div><div class="section-sub" id="correctionSub">Agregar a la dosis fija de Apidra precomidas.</div></div><table class="correction" id="originalCorrection" aria-label="Refuerzo seg\xFAn glicemia"><colgroup><col><col></colgroup><thead><tr><th scope="col">HGT \xB7 mg/dL</th><th scope="col">REFUERZO / INDICACI\xD3N</th></tr></thead><tbody id="correctionRows"></tbody></table><table class="sensitivity-table" id="sensitivityTable" aria-label="Correcci\xF3n seg\xFAn sensibilidad del paciente" hidden><colgroup id="sensitivityCols"></colgroup><thead id="sensitivityHead"></thead><tbody id="sensitivityRows"></tbody></table><div class="row-tools"><button type="button" data-add="correction">+ A\xF1adir rango</button></div></section>\n<section class="panel green" id="fixedPanel" aria-labelledby="headingFixed"><div class="section-heading"><button type="button" class="hide-panel" data-hide="showFixed" aria-label="Ocultar cuadro de dosis fija" title="Ocultar este cuadro">\xD7</button><h2 id="headingFixed">Apidra precomidas: dosis fija</h2></div><table class="meal" aria-label="Dosis por comida"><colgroup><col><col></colgroup><tbody id="mealRows"></tbody></table><div class="row-tools"><button type="button" data-add="meal">+ A\xF1adir horario</button></div></section>\n<aside class="note"><textarea id="patientNote" aria-label="Indicaciones importantes" class="editable" rows="2" placeholder="Escriba las indicaciones para el paciente"></textarea></aside>\n<div class="signature"><div class="field"><label for="prescriber">Profesional:</label><input id="prescriber" autocomplete="off" aria-label="Profesional responsable"></div><span>Firma: __________________</span></div>\n<footer class="footer"><span>Hospital Hanga Roa \xB7 Rapa Nui</span></footer></main>\n<script type="application/json" id="savedPreferences">null<\/script>\n<script type="application/json" id="savedProfiles">[]<\/script>\n<script type="application/json" id="savedState">null<\/script>\n';
+
+// packages/insulin-planner/src/styles.js
+var STYLES = ".hhr-insulin {\n  --ink: #14364b;\n  --muted: #5a7180;\n  --line: #d7e3e9;\n  --blue: #15577d;\n  --green: #176247;\n  --gold: #ffc800;\n}\n.hhr-insulin * {\n  box-sizing: border-box;\n}\n.hhr-insulin {\n  margin: 0;\n  background: #edf2f5;\n  color: var(--ink);\n  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;\n  -webkit-font-smoothing: antialiased;\n}\n.hhr-insulin button,\n.hhr-insulin input,\n.hhr-insulin select,\n.hhr-insulin textarea {\n  font: inherit;\n}\n.hhr-insulin button,\n.hhr-insulin select {\n  cursor: pointer;\n}\n.hhr-insulin button {\n  border: 1px solid #476275;\n  border-radius: 7px;\n  padding: 10px 13px;\n  background: #294a60;\n  color: white;\n  font-size: 13px;\n  font-weight: 650;\n}\n.hhr-insulin button:hover {\n  background: #3a5c72;\n}\n.hhr-insulin button.primary {\n  background: var(--gold);\n  border-color: var(--gold);\n  color: #173247;\n}\n.hhr-insulin button.primary:hover {\n  background: #ffda40;\n}\n.hhr-insulin button:focus-visible,\n.hhr-insulin select:focus-visible,\n.hhr-insulin input:focus-visible,\n.hhr-insulin textarea:focus-visible {\n  outline: 3px solid #3497c6;\n  outline-offset: 2px;\n}\n.hhr-insulin .toolbar {\n  background: #14354a;\n  color: white;\n  padding: 17px 24px;\n}\n.hhr-insulin .toolbar-inner {\n  max-width: 1060px;\n  margin: auto;\n  display: flex;\n  justify-content: space-between;\n  gap: 16px;\n  align-items: center;\n  flex-wrap: wrap;\n}\n.hhr-insulin .toolbar-title {\n  font-size: 15px;\n  font-weight: 750;\n}\n.hhr-insulin .toolbar-sub {\n  display: block;\n  color: #c4d6e0;\n  font-size: 12px;\n  font-weight: 400;\n  margin-top: 5px;\n}\n.hhr-insulin .tools {\n  display: flex;\n  gap: 8px;\n  flex-wrap: wrap;\n}\n.hhr-insulin .settings {\n  max-width: 794px;\n  margin: 22px auto 0;\n  padding: 19px 22px;\n  background: white;\n  border: 1px solid var(--line);\n  border-radius: 10px;\n}\n.hhr-insulin .settings-head {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: 10px;\n  margin-bottom: 14px;\n}\n.hhr-insulin .settings-head strong {\n  font-size: 14px;\n}\n.hhr-insulin .badge {\n  font-size: 11px;\n  color: #35644c;\n  background: #edf7ef;\n  padding: 5px 9px;\n  border-radius: 20px;\n}\n.hhr-insulin .selectors {\n  display: grid;\n  grid-template-columns: 1fr 1fr;\n  gap: 16px;\n}\n.hhr-insulin .control label {\n  font-size: 12px;\n  font-weight: 700;\n  display: block;\n  margin-bottom: 7px;\n}\n.hhr-insulin .control select,\n.hhr-insulin .control input {\n  width: 100%;\n  min-width: 0;\n  padding: 10px 9px;\n  color: var(--ink);\n  border: 1px solid #b9cdd8;\n  border-radius: 6px;\n  background: white;\n  font-size: 13px;\n}\n.hhr-insulin .custom-control {\n  margin-top: 8px;\n}\n.hhr-insulin .helper {\n  font-size: 12px;\n  color: var(--muted);\n  line-height: 1.55;\n  margin: 13px 0 0;\n}\n.hhr-insulin .status {\n  font-size: 12px;\n  line-height: 1.5;\n  color: #496779;\n  margin: 9px 0 0;\n  min-height: 18px;\n}\n.hhr-insulin .sources {\n  margin-top: 11px;\n  font-size: 11px;\n  color: var(--muted);\n}\n.hhr-insulin .sources a {\n  color: #355e76;\n}\n.hhr-insulin .sheet {\n  width: 210mm;\n  min-height: 297mm;\n  margin: 22px auto 38px;\n  background: white;\n  box-shadow: 0 10px 36px #2847591c;\n  padding: 12mm 15mm 10mm;\n  display: flex;\n  flex-direction: column;\n}\n.hhr-insulin .identity {\n  display: flex;\n  gap: 18px;\n  align-items: center;\n  border-bottom: 2px solid var(--line);\n  padding-bottom: 15px;\n  margin-bottom: 19px;\n}\n.hhr-insulin .logo {\n  width: 68px;\n  height: 68px;\n  object-fit: contain;\n  flex-shrink: 0;\n}\n.hhr-insulin .hospital-name {\n  font-size: 19px;\n  font-weight: 800;\n  letter-spacing: 0.35px;\n}\n.hhr-insulin .hospital-sub {\n  font-size: 11px;\n  color: var(--muted);\n  margin-top: 5px;\n}\n.hhr-insulin .eyebrow {\n  font-size: 10px;\n  letter-spacing: 1.8px;\n  font-weight: 750;\n  text-transform: uppercase;\n  color: #698493;\n  margin: 0 0 6px;\n}\n.hhr-insulin h1 {\n  font-size: 28px;\n  letter-spacing: -0.7px;\n  margin: 0 0 18px;\n  line-height: 1.15;\n}\n.hhr-insulin .patient {\n  display: grid;\n  grid-template-columns: 1fr 1fr;\n  gap: 9px 20px;\n  margin-bottom: 18px;\n}\n.hhr-insulin .field {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  min-height: 31px;\n  border-bottom: 1px solid #9db2c0;\n  min-width: 0;\n}\n.hhr-insulin .field.name {\n  grid-column: 1/-1;\n}\n.hhr-insulin .field label {\n  font-size: 13px;\n  font-weight: 700;\n  flex-shrink: 0;\n}\n.hhr-insulin .field input {\n  flex: 1;\n  min-width: 0;\n  background: transparent;\n  border: 0;\n  padding: 5px 1px;\n  color: var(--ink);\n  font-size: 13px;\n}\n.hhr-insulin .panel {\n  border: 1px solid #bdddeb;\n  border-radius: 9px;\n  overflow: hidden;\n  margin-bottom: 16px;\n  break-inside: avoid;\n}\n.hhr-insulin .section-heading {\n  padding: 12px 15px;\n  background: #edf7fc;\n  border-bottom: 1px solid #cfe4ee;\n}\n.hhr-insulin h2 {\n  font-size: 18px;\n  line-height: 1.25;\n  letter-spacing: -0.25px;\n  margin: 0;\n  color: var(--blue);\n}\n.hhr-insulin .section-sub {\n  font-size: 12px;\n  line-height: 1.4;\n  color: #4c6878;\n  margin-top: 4px;\n}\n.hhr-insulin .medication {\n  font-size: 11px;\n  color: #526d7d;\n  margin-top: 4px;\n}\n.hhr-insulin table {\n  width: 100%;\n  border-collapse: collapse;\n  table-layout: fixed;\n}\n.hhr-insulin th,\n.hhr-insulin td {\n  text-align: left;\n  border-bottom: 1px solid #dce8ef;\n  vertical-align: middle;\n}\n.hhr-insulin tr:last-child td {\n  border-bottom: 0;\n}\n.hhr-insulin th {\n  padding: 7px 13px;\n  font-size: 10px;\n  letter-spacing: 0.5px;\n  font-weight: 650;\n  color: #587383;\n}\n.hhr-insulin td {\n  padding: 6px 13px;\n  height: 42px;\n}\n.hhr-insulin .correction col:first-child {\n  width: 29%;\n}\n.hhr-insulin .correction td:first-child {\n  background: #eaf5fc;\n  border-right: 1px solid #d6e7f0;\n}\n.hhr-insulin .correction tr:nth-child(even) td:last-child {\n  background: #f9fbfd;\n}\n.hhr-insulin .editable {\n  display: block;\n  width: 100%;\n  min-width: 0;\n  border: 1px solid transparent;\n  border-radius: 4px;\n  padding: 4px 2px;\n  color: var(--ink);\n  background: transparent;\n  line-height: 1.3;\n  resize: none;\n  overflow: hidden;\n}\n.hhr-insulin .editable:hover {\n  border-color: #bbd3e0;\n}\n.hhr-insulin .editable:focus {\n  background: white;\n  border-color: #60a5c7;\n}\n.hhr-insulin .range {\n  text-align: center;\n  font-size: 19px;\n  font-weight: 800;\n}\n.hhr-insulin .dose {\n  font-size: 18px;\n  font-weight: 750;\n}\n.hhr-insulin .dose.long {\n  font-size: 13px;\n  font-weight: 650;\n}\n.hhr-insulin .green {\n  border-color: #bfdece;\n}\n.hhr-insulin .green .section-heading {\n  background: #edf8f1;\n  border-color: #cde5d7;\n}\n.hhr-insulin .green h2 {\n  color: var(--green);\n}\n.hhr-insulin .meal col:first-child {\n  width: 54%;\n}\n.hhr-insulin .meal td:first-child {\n  background: #f0f8f3;\n  border-right: 1px solid #dceadf;\n}\n.hhr-insulin .meal td {\n  height: 43px;\n  border-color: #dceadf;\n}\n.hhr-insulin .meal-name {\n  font-size: 15px;\n  font-weight: 700;\n  color: #204f3d;\n}\n.hhr-insulin .meal-dose {\n  font-size: 20px;\n  color: #14553e;\n  font-weight: 800;\n}\n.hhr-insulin .basal {\n  border-color: #e7d393;\n}\n.hhr-insulin .basal .section-heading {\n  background: #fff9e7;\n  border-color: #eadeb6;\n}\n.hhr-insulin .basal h2 {\n  color: #786019;\n}\n.hhr-insulin .basal th {\n  color: #786019;\n}\n.hhr-insulin .basal td {\n  height: 39px;\n}\n.hhr-insulin .basal td + td {\n  border-left: 1px solid #eee4c8;\n}\n.hhr-insulin .basal .editable {\n  font-size: 15px;\n  font-weight: 650;\n}\n.hhr-insulin .basal col:first-child {\n  width: 65%;\n}\n.hhr-insulin .note {\n  background: #f6f9fb;\n  border: 1px solid #dfe8ed;\n  border-radius: 7px;\n  padding: 10px 12px;\n  margin-bottom: 16px;\n}\n.hhr-insulin .note label {\n  display: block;\n  font-weight: 750;\n  font-size: 11px;\n  margin-bottom: 3px;\n}\n.hhr-insulin .note textarea {\n  font-size: 11px;\n  line-height: 1.5;\n  font-weight: 400;\n  color: #486171;\n}\n.hhr-insulin .signature {\n  display: flex;\n  gap: 8px;\n  align-items: center;\n  margin-top: 4px;\n  padding-bottom: 8px;\n  font-size: 11px;\n}\n.hhr-insulin .signature input {\n  font-size: 11px;\n}\n.hhr-insulin .signature .field {\n  flex: 1;\n}\n.hhr-insulin .footer {\n  display: flex;\n  justify-content: space-between;\n  gap: 12px;\n  font-size: 9px;\n  color: #728591;\n  border-top: 1px solid #dfe8ed;\n  padding-top: 11px;\n  margin-top: auto;\n}\n.hhr-insulin .print-value {\n  display: none;\n}\n.hhr-insulin [hidden] {\n  display: none !important;\n}\n.hhr-insulin #logoUpload {\n  max-width: 100%;\n  font-size: 12px;\n}\n.hhr-insulin .logo-option {\n  margin-top: 12px;\n  font-size: 12px;\n  color: var(--muted);\n}\n.hhr-insulin .logo-option summary {\n  cursor: pointer;\n  width: fit-content;\n}\n.hhr-insulin .logo-option input {\n  margin-top: 10px;\n}\n@media (max-width: 840px) {\n  .hhr-insulin .settings {\n    margin: 16px 12px 0;\n  }\n  .hhr-insulin .sheet {\n    width: calc(100% - 24px);\n    min-height: auto;\n    margin: 16px 12px 28px;\n    padding: 25px 22px;\n  }\n  .hhr-insulin .toolbar {\n    padding: 16px;\n  }\n  .hhr-insulin .hospital-name {\n    font-size: 17px;\n  }\n  .hhr-insulin .hospital-sub {\n    font-size: 10px;\n  }\n  .hhr-insulin .logo {\n    width: 57px;\n    height: 57px;\n  }\n  .hhr-insulin .identity {\n    gap: 13px;\n  }\n  .hhr-insulin .correction col:first-child {\n    width: 32%;\n  }\n  .hhr-insulin .range {\n    font-size: 17px;\n  }\n}\n@media (max-width: 520px) {\n  .hhr-insulin .selectors {\n    grid-template-columns: 1fr;\n  }\n  .hhr-insulin .settings {\n    padding: 17px;\n  }\n  .hhr-insulin .toolbar-title {\n    font-size: 14px;\n  }\n  .hhr-insulin button {\n    font-size: 12px;\n    padding: 9px 10px;\n  }\n  .hhr-insulin .sheet {\n    padding: 22px 15px;\n  }\n  .hhr-insulin .identity {\n    gap: 11px;\n  }\n  .hhr-insulin .hospital-name {\n    font-size: 15px;\n  }\n  .hhr-insulin .logo {\n    width: 50px;\n    height: 50px;\n  }\n  .hhr-insulin h1 {\n    font-size: 25px;\n  }\n  .hhr-insulin h2 {\n    font-size: 16px;\n  }\n  .hhr-insulin .patient {\n    grid-template-columns: 1fr;\n    gap: 6px;\n  }\n  .hhr-insulin .field.name {\n    grid-column: auto;\n  }\n  .hhr-insulin td {\n    padding: 5px 8px;\n  }\n  .hhr-insulin .range {\n    font-size: 15px;\n  }\n  .hhr-insulin .dose {\n    font-size: 17px;\n  }\n  .hhr-insulin .dose.long {\n    font-size: 12px;\n  }\n  .hhr-insulin .section-heading {\n    padding: 11px;\n  }\n  .hhr-insulin .meal-name {\n    font-size: 14px;\n  }\n  .hhr-insulin .footer {\n    font-size: 8px;\n  }\n}\n\n@media print {\n  .hhr-insulin * {\n    -webkit-print-color-adjust: exact;\n    print-color-adjust: exact;\n  }\n  .hhr-insulin {\n    background: white;\n  }\n  .hhr-insulin .toolbar,\n  .hhr-insulin .settings {\n    display: none !important;\n  }\n  .hhr-insulin .sheet {\n    width: 100%;\n    min-height: 272mm;\n    margin: 0;\n    padding: 0;\n    box-shadow: none;\n  }\n  .hhr-insulin .identity {\n    margin-bottom: 15px;\n    padding-bottom: 12px;\n  }\n  .hhr-insulin .hospital-name {\n    font-size: 19px;\n  }\n  .hhr-insulin .hospital-sub {\n    font-size: 11px;\n  }\n  .hhr-insulin .logo {\n    width: 64px;\n    height: 64px;\n  }\n  .hhr-insulin h1 {\n    font-size: 26px;\n    margin-bottom: 14px;\n  }\n  .hhr-insulin h2 {\n    font-size: 17px;\n  }\n  .hhr-insulin .patient {\n    grid-template-columns: 1fr 1fr;\n    margin-bottom: 15px;\n    gap: 8px 20px;\n  }\n  .hhr-insulin .field.name {\n    grid-column: 1/-1;\n  }\n  .hhr-insulin .field {\n    min-height: 28px;\n  }\n  .hhr-insulin .panel {\n    margin-bottom: 13px;\n  }\n  .hhr-insulin .section-heading {\n    padding: 10px 13px;\n  }\n  .hhr-insulin td {\n    height: 37px;\n    padding: 5px 12px;\n  }\n  .hhr-insulin .meal td {\n    height: 38px;\n  }\n  .hhr-insulin .basal td {\n    height: 34px;\n  }\n  .hhr-insulin .editable,\n  .hhr-insulin .field input {\n    display: none !important;\n  }\n  .hhr-insulin .print-value {\n    display: block;\n    white-space: pre-wrap;\n    overflow-wrap: anywhere;\n    min-width: 0;\n    min-height: 1.2em;\n    font-size: inherit;\n    line-height: 1.3;\n  }\n  .hhr-insulin .field .print-value {\n    flex: 1;\n    font-size: 13px;\n    padding: 5px 1px;\n  }\n  .hhr-insulin .print-value.range {\n    font-size: 19px;\n  }\n  .hhr-insulin .print-value.dose {\n    font-size: 18px;\n  }\n  .hhr-insulin .print-value.long {\n    font-size: 13px;\n  }\n  .hhr-insulin .print-value.meal-name {\n    font-size: 15px;\n  }\n  .hhr-insulin .print-value.meal-dose {\n    font-size: 20px;\n  }\n  .hhr-insulin .note {\n    padding: 9px 11px;\n    margin-bottom: 12px;\n    break-inside: avoid;\n  }\n  .hhr-insulin .note .print-value {\n    font-size: 11px;\n    line-height: 1.45;\n  }\n  .hhr-insulin .signature {\n    break-inside: avoid;\n  }\n  .hhr-insulin .signature .print-value {\n    font-size: 11px;\n  }\n  .hhr-insulin .footer {\n    padding-top: 9px;\n  }\n  .hhr-insulin .sheet.has-basal h1 {\n    margin-bottom: 11px;\n  }\n  .hhr-insulin .sheet.has-basal .patient {\n    margin-bottom: 12px;\n  }\n  .hhr-insulin .sheet.has-basal .identity {\n    margin-bottom: 12px;\n  }\n  .hhr-insulin .sheet.has-basal .panel {\n    margin-bottom: 11px;\n  }\n  .hhr-insulin .sheet.has-basal td {\n    height: 33px;\n  }\n  .hhr-insulin .sheet.has-basal .meal td {\n    height: 34px;\n  }\n  .hhr-insulin .sheet.has-basal .section-heading {\n    padding: 7px 12px;\n  }\n  .hhr-insulin .sheet.has-basal .logo {\n    width: 56px;\n    height: 56px;\n  }\n  .hhr-insulin .sheet.has-basal .identity {\n    padding-bottom: 10px;\n    margin-bottom: 10px;\n  }\n  .hhr-insulin .sheet.has-basal h1 {\n    font-size: 24px;\n  }\n  .hhr-insulin .sheet.has-basal td,\n  .hhr-insulin .sheet.has-basal .meal td {\n    height: 30px;\n    padding: 4px 12px;\n  }\n  .hhr-insulin .sheet.has-basal .print-value.range,\n  .hhr-insulin .sheet.has-basal .print-value.dose {\n    font-size: 18px;\n    line-height: 1.15;\n  }\n  .hhr-insulin .sheet.has-basal .print-value.long {\n    font-size: 12.5px;\n    line-height: 1.25;\n  }\n  .hhr-insulin .sheet.has-basal .print-value.meal-dose {\n    font-size: 19px;\n  }\n  .hhr-insulin .sheet.has-basal .panel {\n    margin-bottom: 10px;\n  }\n}\n.hhr-insulin /* Compact editing and print layout. */\n.cell-content {\n  display: flex;\n  align-items: center;\n  gap: 7px;\n  min-width: 0;\n}\n.hhr-insulin .cell-content .editable {\n  flex: 1;\n  width: 0;\n  min-width: 0;\n}\n.hhr-insulin .remove-row {\n  flex: 0 0 28px;\n  width: 28px;\n  height: 28px;\n  padding: 0;\n  border: 1px solid #cddae2;\n  border-radius: 5px;\n  background: transparent;\n  color: #6b7e8a;\n  font-size: 20px;\n  font-weight: 400;\n  line-height: 1;\n}\n.hhr-insulin .remove-row:hover {\n  background: #fff1ee;\n  border-color: #d9aaa1;\n  color: #9a4032;\n}\n.hhr-insulin .row-tools {\n  padding: 4px 11px;\n  border-top: 1px solid #e4ebef;\n  background: #fff;\n}\n.hhr-insulin .row-tools button {\n  padding: 3px 0;\n  background: transparent;\n  border: 0;\n  color: #557284;\n  font-size: 11px;\n}\n.hhr-insulin .row-tools button:hover {\n  color: #173f59;\n  text-decoration: underline;\n}\n.hhr-insulin .note {\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  padding: 0;\n  margin: 0 0 10px;\n}\n.hhr-insulin .note textarea {\n  font-size: 10px;\n  line-height: 1.4;\n  padding: 0;\n  border: 1px solid transparent;\n}\n.hhr-insulin .note textarea:hover,\n.hhr-insulin .note textarea:focus {\n  border-color: #c3d4de;\n}\n.hhr-insulin .footer {\n  margin-top: 8px;\n  padding-top: 8px;\n}\n.hhr-insulin .toolbar {\n  padding: 12px 20px;\n}\n.hhr-insulin .toolbar-sub {\n  margin-top: 3px;\n}\n.hhr-insulin .settings {\n  margin-top: 12px;\n  padding: 12px 17px;\n}\n.hhr-insulin .settings-head {\n  margin-bottom: 10px;\n}\n.hhr-insulin .selectors {\n  gap: 13px;\n}\n.hhr-insulin .control label {\n  margin-bottom: 5px;\n}\n.hhr-insulin .control select,\n.hhr-insulin .control input {\n  padding: 8px;\n}\n.hhr-insulin .helper {\n  margin-top: 9px;\n  font-size: 11px;\n  line-height: 1.4;\n}\n.hhr-insulin .status {\n  margin-top: 5px;\n  font-size: 11px;\n  min-height: 15px;\n}\n.hhr-insulin .logo-option,\n.hhr-insulin .sources {\n  margin-top: 7px;\n}\n.hhr-insulin .sheet {\n  min-height: 0;\n  margin: 12px auto 24px;\n  padding: 25px 38px 20px;\n}\n.hhr-insulin .identity {\n  padding-bottom: 10px;\n  margin-bottom: 13px;\n  gap: 14px;\n}\n.hhr-insulin .logo {\n  width: 56px;\n  height: 56px;\n}\n.hhr-insulin h1 {\n  font-size: 25px;\n  margin-bottom: 12px;\n}\n.hhr-insulin .patient {\n  margin-bottom: 13px;\n  gap: 6px 18px;\n}\n.hhr-insulin .field {\n  min-height: 28px;\n}\n.hhr-insulin .panel {\n  margin-bottom: 11px;\n  border-radius: 7px;\n}\n.hhr-insulin .section-heading {\n  padding: 8px 12px;\n}\n.hhr-insulin h2 {\n  font-size: 16px;\n}\n.hhr-insulin .medication,\n.hhr-insulin .section-sub {\n  margin-top: 3px;\n  font-size: 11px;\n}\n.hhr-insulin th {\n  padding: 5px 12px;\n}\n.hhr-insulin td,\n.hhr-insulin .meal td,\n.hhr-insulin .basal td {\n  height: 34px;\n  padding: 3px 11px;\n}\n.hhr-insulin .editable {\n  padding: 3px 2px;\n  line-height: 1.2;\n}\n.hhr-insulin .range {\n  font-size: 18px;\n}\n.hhr-insulin .dose {\n  font-size: 17px;\n}\n.hhr-insulin .dose.long {\n  font-size: 12px;\n}\n.hhr-insulin .meal-name {\n  font-size: 14px;\n}\n.hhr-insulin .meal-dose {\n  font-size: 18px;\n}\n.hhr-insulin .signature {\n  margin-top: 0;\n  padding-bottom: 0;\n}\n@media screen and (max-width: 840px) {\n  .hhr-insulin .sheet {\n    width: calc(100% - 24px);\n    padding: 22px;\n  }\n  .hhr-insulin .settings {\n    margin: 12px 12px 0;\n  }\n}\n@media screen and (max-width: 520px) {\n  .hhr-insulin .sheet {\n    padding: 18px 14px;\n  }\n  .hhr-insulin .settings {\n    padding: 13px;\n  }\n  .hhr-insulin .toolbar {\n    padding: 12px 15px;\n  }\n  .hhr-insulin .logo {\n    width: 46px;\n    height: 46px;\n  }\n  .hhr-insulin .hospital-name {\n    font-size: 14px;\n  }\n  .hhr-insulin .hospital-sub {\n    font-size: 9px;\n  }\n  .hhr-insulin .identity {\n    gap: 10px;\n  }\n  .hhr-insulin h1 {\n    font-size: 22px;\n  }\n  .hhr-insulin h2 {\n    font-size: 15px;\n  }\n  .hhr-insulin .range {\n    font-size: 15px;\n  }\n  .hhr-insulin .dose {\n    font-size: 16px;\n  }\n  .hhr-insulin .dose.long {\n    font-size: 12px;\n  }\n  .hhr-insulin td,\n  .hhr-insulin .meal td,\n  .hhr-insulin .basal td {\n    padding: 3px 7px;\n  }\n  .hhr-insulin .meal-name {\n    font-size: 13px;\n  }\n  .hhr-insulin .cell-content {\n    gap: 3px;\n  }\n  .hhr-insulin .remove-row {\n    flex-basis: 26px;\n    width: 26px;\n    height: 30px;\n  }\n  .hhr-insulin .row-tools {\n    padding: 5px 9px;\n  }\n  .hhr-insulin .note textarea {\n    font-size: 10px;\n  }\n}\n@media print {\n  .hhr-insulin .remove-row,\n  .hhr-insulin .row-tools,\n  .hhr-insulin .panel.empty {\n    display: none !important;\n  }\n  .hhr-insulin .cell-content {\n    display: block;\n  }\n  .hhr-insulin .sheet {\n    width: 100%;\n    min-height: 0;\n    margin: 0;\n    padding: 0;\n  }\n  .hhr-insulin .identity,\n  .hhr-insulin .sheet.has-basal .identity {\n    padding-bottom: 9px;\n    margin-bottom: 11px;\n  }\n  .hhr-insulin .logo,\n  .hhr-insulin .sheet.has-basal .logo {\n    width: 52px;\n    height: 52px;\n  }\n  .hhr-insulin h1,\n  .hhr-insulin .sheet.has-basal h1 {\n    font-size: 24px;\n    margin-bottom: 11px;\n  }\n  .hhr-insulin .patient,\n  .hhr-insulin .sheet.has-basal .patient {\n    margin-bottom: 12px;\n    gap: 6px 18px;\n  }\n  .hhr-insulin .field {\n    min-height: 27px;\n  }\n  .hhr-insulin .panel,\n  .hhr-insulin .sheet.has-basal .panel {\n    margin-bottom: 10px;\n  }\n  .hhr-insulin .section-heading,\n  .hhr-insulin .sheet.has-basal .section-heading {\n    padding: 7px 11px;\n  }\n  .hhr-insulin h2 {\n    font-size: 16px;\n  }\n  .hhr-insulin .section-sub,\n  .hhr-insulin .medication {\n    font-size: 10.5px;\n    margin-top: 3px;\n  }\n  .hhr-insulin th {\n    padding: 5px 11px;\n  }\n  .hhr-insulin td,\n  .hhr-insulin .meal td,\n  .hhr-insulin .basal td,\n  .hhr-insulin .sheet.has-basal td,\n  .hhr-insulin .sheet.has-basal .meal td {\n    height: 29px;\n    padding: 4px 11px;\n  }\n  .hhr-insulin .print-value.range,\n  .hhr-insulin .sheet.has-basal .print-value.range {\n    font-size: 17px;\n    line-height: 1.15;\n  }\n  .hhr-insulin .print-value.dose,\n  .hhr-insulin .sheet.has-basal .print-value.dose {\n    font-size: 17px;\n    line-height: 1.15;\n  }\n  .hhr-insulin .print-value.long,\n  .hhr-insulin .sheet.has-basal .print-value.long {\n    font-size: 12px;\n    line-height: 1.2;\n  }\n  .hhr-insulin .print-value.meal-name {\n    font-size: 14px;\n  }\n  .hhr-insulin .print-value.meal-dose,\n  .hhr-insulin .sheet.has-basal .print-value.meal-dose {\n    font-size: 18px;\n  }\n  .hhr-insulin .note {\n    border: 0;\n    background: transparent;\n    border-radius: 0;\n    padding: 0;\n    margin: 0 0 10px;\n  }\n  .hhr-insulin .note .print-value {\n    font-size: 9px;\n    line-height: 1.35;\n  }\n  .hhr-insulin .footer {\n    margin-top: 9px;\n    padding-top: 7px;\n    font-size: 8px;\n  }\n  .hhr-insulin .signature {\n    padding-bottom: 0;\n  }\n}\n.hhr-insulin .switches {\n  display: flex;\n  gap: 9px 18px;\n  flex-wrap: wrap;\n  margin-top: 12px;\n  padding-top: 10px;\n  border-top: 1px solid #e3ebef;\n}\n.hhr-insulin .switch-control {\n  position: relative;\n  display: inline-flex;\n  align-items: center;\n  gap: 7px;\n  cursor: pointer;\n  font-size: 12px;\n  min-height: 30px;\n}\n.hhr-insulin .switch-control input {\n  position: absolute;\n  opacity: 0;\n  width: 35px;\n  height: 23px;\n  margin: 0;\n  inset-inline-start: 0;\n  cursor: pointer;\n}\n.hhr-insulin .switch-track {\n  position: relative;\n  display: block;\n  width: 34px;\n  height: 20px;\n  border-radius: 20px;\n  background: #9aaeb9;\n  border: 1px solid #8fa4af;\n  flex-shrink: 0;\n  pointer-events: none;\n}\n.hhr-insulin .switch-track:after {\n  content: '';\n  position: absolute;\n  left: 2px;\n  top: 2px;\n  width: 14px;\n  height: 14px;\n  background: white;\n  border-radius: 50%;\n  box-shadow: 0 1px 2px #173b4a40;\n}\n.hhr-insulin .switch-control input:checked + .switch-track {\n  background: #187350;\n  border-color: #187350;\n}\n.hhr-insulin .switch-control input:checked + .switch-track:after {\n  left: 16px;\n}\n.hhr-insulin .switch-control input:focus-visible + .switch-track {\n  outline: 3px solid #3497c6;\n  outline-offset: 2px;\n}\n.hhr-insulin .switch-control small {\n  color: #617986;\n  font-size: 10px;\n  min-width: 15px;\n}\n.hhr-insulin .sensitivity-settings {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  flex-wrap: wrap;\n  margin-top: 9px;\n  font-size: 12px;\n}\n.hhr-insulin .sensitivity-settings label {\n  font-weight: 650;\n}\n.hhr-insulin .sensitivity-settings select {\n  border: 1px solid #b9cdd8;\n  border-radius: 5px;\n  padding: 6px;\n  color: var(--ink);\n  background: white;\n  font-size: 12px;\n}\n.hhr-insulin .sensitivity-settings p {\n  flex-basis: 100%;\n  font-size: 11px;\n  margin: 0;\n  color: #88641e;\n  line-height: 1.45;\n}\n.hhr-insulin .section-heading {\n  position: relative;\n  padding-right: 42px;\n}\n.hhr-insulin .hide-panel {\n  position: absolute;\n  right: 9px;\n  top: 7px;\n  width: 27px;\n  height: 27px;\n  padding: 0;\n  border: 1px solid #bdd2dd;\n  background: transparent;\n  color: #587788;\n  font-size: 20px;\n  font-weight: 400;\n  line-height: 1;\n}\n.hhr-insulin .hide-panel:hover {\n  background: white;\n  color: #923c2a;\n}\n.hhr-insulin .sensitivity-table col:first-child {\n  width: 27%;\n}\n.hhr-insulin .sensitivity-table td,\n.hhr-insulin .sensitivity-table th {\n  border-right: 1px solid #dce8ef;\n  text-align: center;\n}\n.hhr-insulin .sensitivity-table td:last-child,\n.hhr-insulin .sensitivity-table th:last-child {\n  border-right: 0;\n}\n.hhr-insulin .sensitivity-table th {\n  overflow-wrap: anywhere;\n  hyphens: auto;\n  font-size: 10px;\n  letter-spacing: 0;\n  line-height: 1.25;\n  background: #eaf5fa;\n  padding: 6px;\n}\n.hhr-insulin .sensitivity-table td {\n  padding: 3px 7px;\n}\n.hhr-insulin .sensitivity-table .editable {\n  text-align: center;\n  font-size: 16px;\n  font-weight: 700;\n}\n.hhr-insulin .sensitivity-table tr:nth-child(even) {\n  background: #f5f9fb;\n}\n.hhr-insulin .sensitivity-table .cell-content {\n  gap: 2px;\n}\n.hhr-insulin .sensitivity-table .remove-row {\n  flex-basis: 23px;\n  width: 23px;\n}\n.hhr-insulin .sensitivity-range {\n  font-weight: 750;\n}\n.hhr-insulin .sensitivity-table .print-value {\n  text-align: center;\n}\n@media screen and (max-width: 520px) {\n  .hhr-insulin .switches {\n    gap: 4px 10px;\n  }\n  .hhr-insulin .switch-control {\n    font-size: 11px;\n  }\n  .hhr-insulin .sensitivity-table th {\n    font-size: 9px;\n    padding: 5px 3px;\n  }\n  .hhr-insulin .sensitivity-table td {\n    padding: 3px;\n  }\n  .hhr-insulin .sensitivity-table .editable {\n    font-size: 13px;\n  }\n  .hhr-insulin .sensitivity-table .remove-row {\n    flex-basis: 20px;\n    width: 20px;\n  }\n  .hhr-insulin .section-heading {\n    padding-right: 38px;\n  }\n}\n@media print {\n  .hhr-insulin .hide-panel {\n    display: none !important;\n  }\n  .hhr-insulin .sensitivity-table .print-value {\n    font-size: 16px;\n    line-height: 1.15;\n    font-weight: 700;\n  }\n  .hhr-insulin .sensitivity-table th {\n    font-size: 10px;\n    padding: 5px;\n  }\n  .hhr-insulin .sensitivity-table td {\n    height: 28px;\n    padding: 4px 7px;\n  }\n  .hhr-insulin .section-heading,\n  .hhr-insulin .sheet.has-basal .section-heading {\n    padding-right: 11px;\n  }\n}\n.hhr-insulin .profiles {\n  margin-bottom: 12px;\n  border: 1px solid #dce6eb;\n  border-radius: 6px;\n  padding: 9px 11px;\n  font-size: 12px;\n  background: #fafcfd;\n}\n.hhr-insulin .profiles summary {\n  cursor: pointer;\n  font-weight: 700;\n}\n.hhr-insulin .profile-line {\n  display: flex;\n  align-items: center;\n  gap: 7px;\n  flex-wrap: wrap;\n  margin-top: 9px;\n}\n.hhr-insulin .profile-line label {\n  font-size: 11px;\n  min-width: 42px;\n  font-weight: 650;\n}\n.hhr-insulin .profile-line input,\n.hhr-insulin .profile-line select {\n  flex: 1;\n  min-width: 140px;\n  padding: 7px;\n  border: 1px solid #bccfd9;\n  border-radius: 5px;\n  background: white;\n  font-size: 12px;\n  color: var(--ink);\n}\n.hhr-insulin .profiles button {\n  padding: 7px 9px;\n  font-size: 11px;\n  border-color: #c5d5de;\n  background: white;\n  color: #30576d;\n}\n.hhr-insulin .profiles button:hover {\n  background: #eaf3f8;\n}\n.hhr-insulin .profile-portable {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  flex-wrap: wrap;\n  margin-top: 9px;\n}\n.hhr-insulin .profile-portable > span {\n  font-size: 10px;\n  line-height: 1.4;\n  color: #667e8c;\n  flex-basis: 100%;\n}\n.hhr-insulin .profile-portable > label {\n  cursor: pointer;\n  font-size: 11px;\n  color: #30576d;\n  text-decoration: underline;\n}\n.hhr-insulin .profile-portable input {\n  max-width: 170px;\n  margin-left: 5px;\n  font-size: 10px;\n}\n.hhr-insulin .basal-settings {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  flex-wrap: wrap;\n  margin-top: 9px;\n  font-size: 12px;\n}\n.hhr-insulin .basal-settings label {\n  font-weight: 650;\n}\n.hhr-insulin .basal-settings select {\n  padding: 6px;\n  border: 1px solid #bccfd9;\n  border-radius: 5px;\n  background: white;\n  color: var(--ink);\n}\n.hhr-insulin .basal-settings span {\n  font-size: 10px;\n  color: #607988;\n}\n@media screen and (max-width: 520px) {\n  .hhr-insulin .profile-line input,\n  .hhr-insulin .profile-line select {\n    flex-basis: calc(100% - 55px);\n  }\n  .hhr-insulin .profile-line button {\n    padding: 8px 10px;\n  }\n  .hhr-insulin .profile-portable input {\n    display: block;\n    margin: 5px 0 0;\n  }\n}\n@media print {\n  .hhr-insulin .sheet {\n    width: 180mm;\n    margin: 0 auto;\n    zoom: var(--print-scale, 1);\n  }\n}\n.hhr-insulin .paper-control {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  font-size: 11px;\n  color: #e5edf2;\n}\n.hhr-insulin .paper-control select {\n  padding: 8px 6px;\n  border: 1px solid #829ba9;\n  border-radius: 6px;\n  background: #294a60;\n  color: white;\n  font-size: 12px;\n}\n.hhr-insulin .profile-default {\n  display: flex;\n  gap: 7px;\n  align-items: center;\n  flex-wrap: wrap;\n  margin-top: 8px;\n}\n.hhr-insulin .profile-default span {\n  font-size: 10px;\n  color: #527386;\n}\n.hhr-insulin .text-export {\n  margin-top: 9px;\n  font-size: 11px;\n  color: #527386;\n}\n.hhr-insulin .text-export summary {\n  cursor: pointer;\n}\n.hhr-insulin .text-export label {\n  display: block;\n  margin: 9px 0 5px;\n  font-weight: 650;\n}\n.hhr-insulin .text-export textarea {\n  display: block;\n  width: 100%;\n  resize: vertical;\n  min-height: 100px;\n  padding: 8px;\n  border: 1px solid #bacfdc;\n  border-radius: 5px;\n  font-size: 12px;\n  line-height: 1.45;\n  color: var(--ink);\n  background: white;\n}\n.hhr-insulin .text-export p {\n  margin: 5px 0;\n  font-size: 10px;\n}\n.hhr-insulin .tools {\n  align-items: center;\n}\n";
+
+// packages/insulin-planner/src/portable.js
+function safeJson(value) {
+  return JSON.stringify(value).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+}
+function createStandaloneDocument({
+  doc,
+  template,
+  styles,
+  bundle,
+  regimen,
+  profiles,
+  preferences,
+  identity = {},
+  logo,
+  brand = {}
+}) {
+  const container = doc.createElement("div");
+  container.className = "hhr-insulin";
+  container.innerHTML = template;
+  for (const id of ["paciente", "rut", "fecha", "prescriber"])
+    container.querySelector("#" + id).setAttribute("value", identity[id] ?? "");
+  for (const [id, data] of Object.entries({
+    savedState: regimen,
+    savedProfiles: profiles,
+    savedPreferences: preferences
+  }))
+    container.querySelector("#" + id).textContent = safeJson(data);
+  if (logo) container.querySelector("#logoImage").setAttribute("src", logo);
+  if (brand.hospitalName)
+    container.querySelector(".hospital-name").textContent = brand.hospitalName;
+  if (brand.hospitalSubtitle)
+    container.querySelector(".hospital-sub").textContent = brand.hospitalSubtitle;
+  const style = doc.createElement("style");
+  style.textContent = styles;
+  container.prepend(style);
+  const script = bundle.replace(/<\/script/gi, "<\\/script");
+  return '<!doctype html>\n<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Esquema de Insulinoterapia</title><style>body{margin:0}</style></head><body>' + container.outerHTML + "<script data-hhr-bundle>" + script + "<\/script></body></html>";
+}
+function downloadText(text2, name, type, doc) {
+  const win = doc.defaultView, url = win.URL.createObjectURL(new win.Blob([text2], { type })), anchor = doc.createElement("a");
+  anchor.href = url;
+  anchor.download = name;
+  anchor.click();
+  win.setTimeout(() => win.URL.revokeObjectURL(url), 2e3);
+}
+
+// packages/insulin-planner/src/index.js
+function mountInsulinPlanner(root, options = {}) {
+  if (!root?.ownerDocument) throw new TypeError("Se requiere un elemento contenedor.");
+  const doc = root.ownerDocument, win = doc.defaultView, abort = new win.AbortController();
+  root.classList.add("hhr-insulin");
+  root.innerHTML = TEMPLATE;
+  const style = doc.createElement("style");
+  style.textContent = STYLES;
+  root.prepend(style);
+  const $ = (id) => root.querySelector("#" + id);
+  for (const id of ["paciente", "rut", "fecha", "prescriber"])
+    if (options.identity?.[id]) $(id).value = options.identity[id];
+  if (options.brand?.logoSrc) $("logoImage").src = options.brand.logoSrc;
+  if (options.brand?.hospitalName)
+    root.querySelector(".hospital-name").textContent = options.brand.hospitalName;
+  if (options.brand?.hospitalSubtitle)
+    root.querySelector(".hospital-sub").textContent = options.brand.hospitalSubtitle;
+  function readJson(id, fallback) {
+    const key = {
+      savedState: "regimen",
+      savedProfiles: "profiles",
+      savedPreferences: "preferences"
+    }[id];
+    if (options.savedSnapshot && options.savedSnapshot[key] != null)
+      return options.savedSnapshot[key];
+    try {
+      return JSON.parse($(id).textContent) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  function browserStorage() {
+    try {
+      return win.localStorage;
+    } catch {
+      return null;
+    }
+  }
+  function status(message) {
+    $("status").textContent = message;
+  }
+  function listen(target, type, listener) {
+    target.addEventListener(
+      type,
+      listener,
+      target === win || root.contains(target) ? { signal: abort.signal } : void 0
+    );
+  }
+  const medicines = Object.fromEntries(
+    Object.entries(RAPID_INSULINS).map(([id, m]) => [id, [m.name, ""]])
+  );
+  const basals = Object.fromEntries(
+    Object.entries(BASAL_INSULINS).map(([id, m]) => [id, [m.name, ""]])
+  );
+  let rendering = false;
+  let state = createInitialRegimen();
+  const saved = readJson("savedState", null);
+  if (isValidRegimen(saved)) state = normalizeRegimen(saved);
+  if (options.initialRegimen) state = normalizeRegimen(options.initialRegimen);
+  function rapid() {
+    return state.rapidProfiles[state.rapid] || (state.rapidProfiles[state.rapid] = createBlankRapidProfile());
+  }
+  function basal() {
+    return state.basalProfiles[state.basal] || (state.basalProfiles[state.basal] = createBasalProfile(state.basal));
+  }
+  function basalVisible() {
+    return state.basal !== "none" && state.showBasal !== false;
+  }
+  function currentNote() {
+    return getCurrentNote(state);
+  }
+  function notify() {
+    if (rendering) return;
+    root.dispatchEvent(
+      new win.CustomEvent("hhr:change", {
+        detail: { regimen: normalizeRegimen(state) },
+        bubbles: true
+      })
+    );
+  }
+  function field(value, label, classes, multiline = false) {
+    const el = doc.createElement(multiline ? "textarea" : "input");
+    el.className = "editable " + classes;
+    el.setAttribute("aria-label", label);
+    if (multiline) el.rows = 1;
+    else el.type = "text";
+    el.value = value;
+    el.autocomplete = "off";
+    return el;
+  }
+  function row(table, fields) {
+    const tr = doc.createElement("tr"), index = table.children.length, kind = table.id === "correctionRows" ? "refuerzo" : table.id === "sensitivityRows" ? "sensibilidad" : table.id === "mealRows" ? "comida" : "basal";
+    fields.forEach((f, i) => {
+      const td = doc.createElement("td");
+      if (i === fields.length - 1) {
+        const wrap = doc.createElement("div");
+        wrap.className = "cell-content";
+        const remove = doc.createElement("button");
+        remove.type = "button";
+        remove.className = "remove-row";
+        remove.textContent = "\xD7";
+        remove.setAttribute("aria-label", "Eliminar fila de " + kind + " " + (index + 1));
+        remove.title = "Eliminar esta fila";
+        listen(remove, "click", () => {
+          capture();
+          const p = rapid(), b = state.basal === "none" ? null : basal();
+          const keys = kind === "refuerzo" || kind === "sensibilidad" ? ["ranges", "doses"] : kind === "comida" ? ["meals", "fixed"] : ["times", "doses"];
+          const profile = kind === "basal" ? b : kind === "sensibilidad" ? p.sensitivity : p;
+          if (kind === "basal") {
+            if (b.frequency !== "custom") {
+              b.times = b.times.slice(0, Number(b.frequency));
+              b.doses = b.doses.slice(0, Number(b.frequency));
+            }
+            b.frequency = "custom";
+          }
+          keys.forEach((key) => profile[key].splice(index, 1));
+          render();
+          const next = table.querySelectorAll(".remove-row");
+          (next[Math.min(index, next.length - 1)] || table.closest(".panel").querySelector("[data-add]")).focus();
+          $("status").textContent = "Fila eliminada. Puede a\xF1adir una nueva o restablecer la plantilla.";
+        });
+        wrap.append(f, remove);
+        td.append(wrap);
+      } else td.append(f);
+      tr.append(td);
+    });
+    table.append(tr);
+  }
+  function capture() {
+    if (rendering) return;
+    const p = rapid();
+    p.ranges = [...root.querySelectorAll("#correctionRows .editable.range")].map((e) => e.value);
+    p.doses = [...root.querySelectorAll("#correctionRows .editable.dose")].map(
+      (e, i) => state.showFixed === false && p.doses[i] === "0 UI de refuerzo (solo dosis fija)" && e.value === "0 UI de refuerzo" ? p.doses[i] : e.value
+    );
+    p.meals = [...root.querySelectorAll("#mealRows .editable.meal-name")].map((e) => e.value);
+    p.fixed = [...root.querySelectorAll("#mealRows .editable.meal-dose")].map((e) => e.value);
+    if (p.useSensitivity) {
+      p.sensitivity.note = $("patientNote").value;
+      root.querySelectorAll("#sensitivityRows tr").forEach((tr, i) => {
+        p.sensitivity.ranges[i] = tr.querySelector(".editable.sensitivity-range").value;
+        tr.querySelectorAll(".editable.sensitivity-dose").forEach(
+          (el) => p.sensitivity.doses[i][Number(el.dataset.column)] = el.value
+        );
+      });
+    } else if ($("patientNote").value !== currentNote()) p.note = $("patientNote").value;
+    p.custom = $("rapidCustom").value;
+    if (state.basal !== "none") {
+      const b = basal();
+      root.querySelectorAll("#basalRows .editable.basal-time").forEach((el, i) => b.times[i] = el.value);
+      root.querySelectorAll("#basalRows .editable.basal-dose").forEach((el, i) => b.doses[i] = el.value);
+      b.custom = $("basalCustom").value;
+    }
+  }
+  function titles() {
+    const p = rapid(), m = medicines[state.rapid], name = state.rapid === "custom" ? p.custom || m[0] : m[0];
+    $("headingCorrection").textContent = name + (p.useSensitivity ? ": correcci\xF3n seg\xFAn sensibilidad" : ": refuerzo seg\xFAn glicemia (HGT)");
+    $("headingFixed").textContent = name + " precomidas: dosis fija";
+    root.querySelector(".rapidMedication").textContent = "";
+    $("correctionSub").textContent = p.useSensitivity ? "Dosis de insulina correccional \xB7 UI" + (p.sensitivityView === "all" ? " \xB7 seg\xFAn sensibilidad del paciente" : " \xB7 " + ["Insulinosensible", "Normal", "Insulinorresistente"][Number(p.sensitivityView)]) : state.rapid === "apidra" && state.showFixed !== false ? "Agregar a la dosis fija de Apidra precomidas." : "Pauta individualizada indicada por el profesional tratante.";
+    if (state.basal !== "none") {
+      const b = basal(), bm = basals[state.basal];
+      $("headingBasal").textContent = "Insulina basal: " + (state.basal === "custom" ? b.custom || bm[0] : bm[0]);
+      $("basalMedication").textContent = b.frequency === "1" ? "1 vez al d\xEDa" : b.frequency === "2" ? "2 veces al d\xEDa" : "Horarios personalizados";
+    }
+  }
+  function resize(el) {
+    if (el.tagName === "TEXTAREA") {
+      el.style.height = "auto";
+      el.style.height = el.scrollHeight + "px";
+    }
+  }
+  function mirrors() {
+    root.querySelectorAll(".print-value").forEach((e) => e.remove());
+    root.querySelectorAll(".sheet input,.sheet textarea").forEach((el) => {
+      const span = doc.createElement("span");
+      span.className = "print-value " + [...el.classList].filter((c) => c !== "editable").join(" ");
+      span.textContent = el.value;
+      span.setAttribute("aria-hidden", "true");
+      el.after(span);
+    });
+  }
+  function render() {
+    rendering = true;
+    try {
+      const p = rapid();
+      $("rapidSelect").value = state.rapid;
+      $("basalSelect").value = state.basal;
+      $("rapidCustomWrap").hidden = state.rapid !== "custom";
+      $("basalCustomWrap").hidden = state.basal !== "custom";
+      $("rapidCustom").value = p.custom;
+      $("correctionRows").replaceChildren();
+      p.ranges.forEach(
+        (v, i) => row($("correctionRows"), [
+          field(v, "Rango HGT " + (i + 1), "range"),
+          field(
+            state.showFixed === false && p.doses[i] === "0 UI de refuerzo (solo dosis fija)" ? "0 UI de refuerzo" : p.doses[i],
+            "Refuerzo o conducta " + (i + 1),
+            "dose" + (p.doses[i].length > 18 ? " long" : ""),
+            true
+          )
+        ])
+      );
+      $("mealRows").replaceChildren();
+      p.meals.forEach(
+        (v, i) => row($("mealRows"), [
+          field(v, "Comida " + (i + 1), "meal-name"),
+          field(p.fixed[i], "Dosis " + v, "dose meal-dose")
+        ])
+      );
+      $("patientNote").value = currentNote();
+      $("patientNote").closest(".note").hidden = currentNote() === "" && state.showCorrection === false;
+      renderSensitivity();
+      renderBasal();
+      ["correctionRows", "mealRows", "basalRows"].forEach(
+        (id) => $(id).closest(".panel").classList.toggle(
+          "empty",
+          id === "correctionRows" && p.useSensitivity ? p.sensitivity.ranges.length === 0 : $(id).children.length === 0
+        )
+      );
+      $("profileBadge").textContent = p.useSensitivity ? "Correcci\xF3n por sensibilidad" : state.rapid === "apidra" ? "Perfil Apidra" : "Pauta individual";
+      titles();
+      root.querySelectorAll("textarea").forEach(resize);
+      mirrors();
+    } finally {
+      rendering = false;
+    }
+  }
+  function renderBasal() {
+    const visible = basalVisible();
+    $("basalPanel").hidden = !visible;
+    $("showBasal").checked = state.showBasal === void 0 ? state.basal !== "none" : !!state.showBasal;
+    root.querySelector('[data-state-for="showBasal"]').textContent = $("showBasal").checked ? "On" : "Off";
+    $("basalSettings").hidden = !visible;
+    $("printSheet").classList.toggle("has-basal", visible);
+    $("basalRows").replaceChildren();
+    if (state.basal !== "none") {
+      const b = basal();
+      $("basalCustom").value = b.custom;
+      $("basalFrequency").value = b.frequency;
+      const count = b.frequency === "custom" ? b.times.length : Number(b.frequency);
+      for (let i = 0; i < count; i++)
+        row($("basalRows"), [
+          field(b.times[i] || "", "Horario basal " + (i + 1), "basal-time"),
+          field(b.doses[i] || "", "Dosis basal " + (i + 1) + " en UI", "basal-dose")
+        ]);
+    }
+  }
+  listen($("basalFrequency"), "change", (e) => {
+    capture();
+    const b = basal();
+    b.frequency = e.target.value;
+    if (b.frequency === "2")
+      while (b.times.length < 2) {
+        b.times.push("");
+        b.doses.push("");
+      }
+    render();
+    $("status").textContent = "Frecuencia basal actualizada; complete las dosis y horarios indicados.";
+  });
+  function updateBoundaryNotice() {
+    const ranges = [...root.querySelectorAll("#sensitivityRows .editable.sensitivity-range")].map(
+      (el) => el.value.replace(/\s/g, "")
+    );
+    $("boundaryNotice").hidden = !(ranges.includes("<140") && ranges.includes("141\u2013180"));
+  }
+  function renderSensitivity() {
+    const p = rapid(), active = !!p.useSensitivity, view = p.sensitivityView, columns = view === "all" ? [0, 1, 2] : [Number(view)], names = ["Insulinosensible", "Normal", "Insulinorresistente"];
+    $("showCorrection").checked = state.showCorrection !== false;
+    $("showFixed").checked = state.showFixed !== false;
+    $("sensitivityToggle").checked = active;
+    $("sensitivityView").value = view;
+    $("sensitivitySettings").hidden = !active;
+    $("correctionPanel").hidden = state.showCorrection === false;
+    $("fixedPanel").hidden = state.showFixed === false;
+    $("originalCorrection").hidden = active;
+    $("sensitivityTable").hidden = !active;
+    root.querySelector('[data-add="correction"]').textContent = "+ A\xF1adir rango";
+    root.querySelectorAll("[data-state-for]").forEach((el) => el.textContent = $(el.dataset.stateFor).checked ? "On" : "Off");
+    $("sensitivityCols").replaceChildren();
+    for (let i = 0; i < columns.length + 1; i++)
+      $("sensitivityCols").append(doc.createElement("col"));
+    const tr = doc.createElement("tr");
+    ["HGT \xB7 mg/dL", ...columns.map((i) => names[i] + " \xB7 UI")].forEach((name) => {
+      const th = doc.createElement("th");
+      th.scope = "col";
+      th.textContent = name;
+      tr.append(th);
+    });
+    $("sensitivityHead").replaceChildren(tr);
+    $("sensitivityRows").replaceChildren();
+    p.sensitivity.ranges.forEach((v, i) => {
+      const fields = [field(v, "Rango sensibilidad " + (i + 1), "sensitivity-range")];
+      columns.forEach((col) => {
+        const el = field(
+          p.sensitivity.doses[i][col],
+          "Dosis " + names[col] + " rango " + (i + 1) + " en UI",
+          "sensitivity-dose"
+        );
+        el.dataset.column = String(col);
+        fields.push(el);
+      });
+      row($("sensitivityRows"), fields);
+    });
+    $("correctionPanel").classList.toggle(
+      "empty",
+      active ? p.sensitivity.ranges.length === 0 : p.ranges.length === 0
+    );
+    updateBoundaryNotice();
+  }
+  function setVisibility(id, value) {
+    capture();
+    state[id] = value;
+    render();
+    $("status").textContent = id === "showBasal" && value && state.basal === "none" ? "Seleccione la insulina basal para incluir su cuadro." : value ? "Cuadro incluido en la hoja y en la impresi\xF3n." : "Cuadro retirado de la hoja y de la impresi\xF3n; puede reactivarlo con el interruptor.";
+  }
+  ["showCorrection", "showFixed", "showBasal"].forEach(
+    (id) => listen($(id), "change", (e) => setVisibility(id, e.target.checked))
+  );
+  root.querySelectorAll("[data-hide]").forEach(
+    (el) => listen(el, "click", () => {
+      setVisibility(el.dataset.hide, false);
+      $(el.dataset.hide).focus();
+    })
+  );
+  listen($("sensitivityToggle"), "change", (e) => {
+    capture();
+    rapid().useSensitivity = e.target.checked;
+    render();
+    $("status").textContent = e.target.checked ? "Pauta correccional de la imagen activada. Puede mostrar las tres sensibilidades o elegir una." : "Pauta anterior recuperada; se conservaron sus dosis y ajustes.";
+  });
+  listen($("sensitivityView"), "change", (e) => {
+    capture();
+    rapid().sensitivityView = e.target.value;
+    render();
+  });
+  listen($("rapidSelect"), "change", (e) => {
+    capture();
+    state.rapid = e.target.value;
+    render();
+    $("status").textContent = state.rapid === "apidra" ? "Apidra: pauta de esta sesi\xF3n recuperada." : "Complete y revise dosis e indicaciones de esta insulina. Las dosis de Apidra no se transfieren.";
+  });
+  listen($("basalSelect"), "change", (e) => {
+    capture();
+    state.basal = e.target.value;
+    state.showBasal = state.basal !== "none";
+    render();
+    $("status").textContent = state.basal === "none" ? "Se retir\xF3 la secci\xF3n basal de la hoja." : "Complete la dosis en UI y el horario de la insulina basal seleccionada.";
+  });
+  listen($("rapidCustom"), "input", () => {
+    rapid().custom = $("rapidCustom").value;
+    titles();
+  });
+  listen($("basalCustom"), "input", () => {
+    if (state.basal !== "none") {
+      basal().custom = $("basalCustom").value;
+      titles();
+    }
+  });
+  listen($("printSheet"), "input", (e) => {
+    resize(e.target);
+    if (e.target.classList.contains("sensitivity-range")) updateBoundaryNotice();
+    mirrors();
+  });
+  root.querySelectorAll("[data-add]").forEach(
+    (button) => listen(button, "click", () => {
+      capture();
+      const kind = button.dataset.add, p = rapid();
+      let target;
+      if (kind === "correction") {
+        if (p.useSensitivity) {
+          p.sensitivity.ranges.push("");
+          p.sensitivity.doses.push(["", "", ""]);
+          target = "sensitivityRows";
+        } else {
+          p.ranges.push("");
+          p.doses.push("");
+          target = "correctionRows";
+        }
+      } else if (kind === "meal") {
+        p.meals.push("");
+        p.fixed.push("");
+        target = "mealRows";
+      } else {
+        const b = basal();
+        if (b.frequency !== "custom") {
+          b.times = b.times.slice(0, Number(b.frequency));
+          b.doses = b.doses.slice(0, Number(b.frequency));
+        }
+        b.frequency = "custom";
+        b.times.push("");
+        b.doses.push("");
+        target = "basalRows";
+      }
+      render();
+      $(target).lastElementChild.querySelector(".editable").focus();
+      $("status").textContent = "Fila a\xF1adida. Complete el rango u horario y la dosis indicada.";
+    })
+  );
+  listen($("restoreBtn"), "click", () => {
+    state = createInitialRegimen();
+    render();
+    $("status").textContent = "Plantilla restablecida: filas y dosis originales de Apidra. Se conservaron los datos del paciente y el logo.";
+  });
+  const repository = new ProfileRepository({
+    storage: Object.hasOwn(options, "storage") ? options.storage : browserStorage(),
+    namespace: options.storageNamespace,
+    seed: readJson("savedProfiles", []),
+    preferences: readJson("savedPreferences", null)
+  });
+  let preferences = repository.getPreferences();
+  function listProfiles(selected = "") {
+    $("profileSelect").replaceChildren(new win.Option("Seleccionar perfil guardado", ""));
+    for (const p2 of repository.list())
+      $("profileSelect").add(
+        new win.Option(p2.name + (p2.id === preferences.defaultId ? " \u2605 Predeterminado" : ""), p2.id)
+      );
+    $("profileSelect").value = selected;
+    const p = repository.get(preferences.defaultId);
+    $("defaultProfileLabel").textContent = p ? "Inicio: " + p.name : "Inicio: sin perfil predeterminado";
+  }
+  function selectedProfile() {
+    return repository.get($("profileSelect").value);
+  }
+  function persisted(message) {
+    preferences = repository.getPreferences();
+    $("status").textContent = repository.persistent ? message : message + " Use Guardar HTML o Exportar perfiles para conservarlo en un archivo.";
+  }
+  function applyPaper() {
+    $("paperSize").value = preferences.paperSize;
+    $("paperStyle").textContent = createPaperCss(preferences.paperSize);
+  }
+  listen($("paperSize"), "change", () => {
+    repository.setPaperSize($("paperSize").value);
+    preferences = repository.getPreferences();
+    applyPaper();
+    persisted("Papel de impresi\xF3n actualizado.");
+  });
+  listen($("setDefaultProfile"), "click", () => {
+    const p = selectedProfile();
+    if (!p) return status("Seleccione un perfil guardado.");
+    repository.setDefault(p.id);
+    preferences = repository.getPreferences();
+    listProfiles(p.id);
+    persisted("Al abrir se cargar\xE1 el perfil " + p.name + ".");
+  });
+  listen($("clearDefaultProfile"), "click", () => {
+    repository.setDefault("");
+    preferences = repository.getPreferences();
+    listProfiles($("profileSelect").value);
+    persisted("Perfil predeterminado retirado.");
+  });
+  listen($("storeProfile"), "click", () => {
+    const name = $("profileName").value.trim();
+    if (!name) {
+      $("profileName").focus();
+      return status("Escriba un nombre para el perfil.");
+    }
+    try {
+      capture();
+      const p = repository.save(name, state);
+      listProfiles(p.id);
+      persisted("Perfil guardado: " + p.name + ".");
+    } catch (error) {
+      status(error.message);
+    }
+  });
+  listen($("profileSelect"), "change", () => {
+    const p = selectedProfile();
+    if (p) $("profileName").value = p.name;
+  });
+  listen($("loadProfile"), "click", () => {
+    const p = selectedProfile();
+    if (!p) return status("Seleccione un perfil guardado.");
+    state = p.regimen;
+    render();
+    $("profileName").value = p.name;
+    status("Perfil cargado: " + p.name + ". Se conservaron los datos del paciente y el logo.");
+    notify();
+  });
+  listen($("updateProfile"), "click", () => {
+    const old = selectedProfile();
+    if (!old) return status("Seleccione el perfil que desea actualizar.");
+    try {
+      capture();
+      const p = repository.save($("profileName").value.trim() || old.name, state, { id: old.id });
+      listProfiles(p.id);
+      persisted("Perfil actualizado: " + p.name + ".");
+    } catch (error) {
+      status(error.message);
+    }
+  });
+  listen($("deleteProfile"), "click", () => {
+    const p = selectedProfile();
+    if (!p) return;
+    repository.remove(p.id);
+    preferences = repository.getPreferences();
+    listProfiles();
+    $("profileName").value = "";
+    persisted("Perfil eliminado: " + p.name + ". La pauta actual se conserva.");
+  });
+  listen(
+    $("exportProfiles"),
+    "click",
+    () => downloadText(
+      repository.export(),
+      "Perfiles_Insulina_HHR.json",
+      "application/json;charset=utf-8",
+      doc
+    )
+  );
+  listen($("importProfiles"), "change", async () => {
+    const input = $("importProfiles"), file = input.files[0];
+    if (!file) return;
+    try {
+      if (file.size > LIMITS.maxImportBytes) throw new Error("El archivo supera 2 MB.");
+      const count = repository.import(await file.text());
+      preferences = repository.getPreferences();
+      listProfiles();
+      persisted(count + " perfiles importados. La pauta actual se conserva.");
+    } catch (error) {
+      status(error.message);
+    }
+    input.value = "";
+  });
+  listProfiles();
+  applyPaper();
+  const preferred = repository.get(preferences.defaultId);
+  if (preferred) {
+    state = preferred.regimen;
+    $("profileName").value = preferred.name;
+    listProfiles(preferred.id);
+    status("Perfil predeterminado cargado: " + preferred.name + ".");
+  }
+  listen($("logoUpload"), "change", () => {
+    const file = $("logoUpload").files[0];
+    if (!file) return;
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type) || file.size > 8 * 1024 * 1024) {
+      $("status").textContent = "Seleccione un logo PNG, JPG o WEBP de hasta 8 MB.";
+      return;
+    }
+    const reader = new win.FileReader();
+    reader.onload = () => {
+      $("logoImage").src = String(reader.result);
+      $("status").textContent = "Logo actualizado. Se incluir\xE1 al imprimir y guardar el HTML.";
+    };
+    reader.readAsDataURL(file);
+  });
+  function schemeParagraph() {
+    capture();
+    return formatRegimenParagraph(state);
+  }
+  listen($("copyTextBtn"), "click", async () => {
+    const text2 = schemeParagraph();
+    $("schemeText").value = text2;
+    try {
+      if (!win.navigator.clipboard?.writeText) throw new Error();
+      await win.navigator.clipboard.writeText(text2);
+      status("Esquema copiado en un solo p\xE1rrafo.");
+    } catch {
+      $("textExport").open = true;
+      $("schemeText").focus();
+      $("schemeText").select();
+      status("Texto generado y seleccionado. Copie con \u2318C o Ctrl+C.");
+    }
+  });
+  listen($("textExport"), "toggle", () => {
+    if ($("textExport").open) $("schemeText").value = schemeParagraph();
+  });
+  listen(win, "beforeprint", () => {
+    capture();
+    titles();
+    mirrors();
+    const sheet = $("printSheet");
+    sheet.style.setProperty("--print-scale", "1");
+    if (win.matchMedia("print").matches) {
+      applyPaper();
+      sheet.style.setProperty(
+        "--print-scale",
+        String(getPrintScale(sheet.getBoundingClientRect().height, preferences.paperSize))
+      );
+    }
+  });
+  listen(win, "afterprint", () => $("printSheet").style.removeProperty("--print-scale"));
+  listen(win, "resize", () => root.querySelectorAll("textarea.editable").forEach(resize));
+  listen($("printBtn"), "click", () => {
+    capture();
+    mirrors();
+    win.print();
+  });
+  listen($("saveBtn"), "click", async () => {
+    try {
+      const html = await exportHtml();
+      const name = ($("paciente").value || "Paciente").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9_-]+/g, "_").slice(0, 50);
+      downloadText(html, "Esquema_Insulina_" + name + ".html", "text/html;charset=utf-8", doc);
+      status("Archivo editable descargado con pautas, perfiles y preferencias.");
+    } catch (error) {
+      status(error.message);
+    }
+  });
+  async function exportHtml() {
+    capture();
+    const bundle = await options.getPortableBundle?.();
+    if (!bundle)
+      throw new Error(
+        "Para guardar un HTML aut\xF3nomo, abra la versi\xF3n aut\xF3noma o configure getPortableBundle."
+      );
+    return createStandaloneDocument({
+      doc,
+      template: TEMPLATE,
+      styles: STYLES,
+      bundle,
+      regimen: normalizeRegimen(state),
+      profiles: repository.list(),
+      preferences: repository.getPreferences(),
+      identity: {
+        paciente: $("paciente").value,
+        rut: $("rut").value,
+        fecha: $("fecha").value,
+        prescriber: $("prescriber").value
+      },
+      logo: $("logoImage").src,
+      brand: {
+        hospitalName: root.querySelector(".hospital-name").textContent,
+        hospitalSubtitle: root.querySelector(".hospital-sub").textContent
+      }
+    });
+  }
+  listen(root, "input", () => {
+    capture();
+    if ($("textExport").open) $("schemeText").value = formatRegimenParagraph(state);
+    notify();
+  });
+  listen(root, "change", () => {
+    capture();
+    notify();
+  });
+  listen(
+    root,
+    "click",
+    () => win.queueMicrotask(() => {
+      if (!abort.signal.aborted) {
+        capture();
+        notify();
+      }
+    })
+  );
+  render();
+  return {
+    getRegimen() {
+      capture();
+      return normalizeRegimen(state);
+    },
+    setRegimen(value) {
+      state = normalizeRegimen(value);
+      render();
+      notify();
+    },
+    getText: schemeParagraph,
+    getProfiles: () => repository.list(),
+    exportProfiles: () => repository.export(),
+    importProfiles(json) {
+      const n = repository.import(json);
+      preferences = repository.getPreferences();
+      listProfiles();
+      return n;
+    },
+    exportHtml,
+    destroy() {
+      abort.abort();
+      root.replaceChildren();
+      root.classList.remove("hhr-insulin");
+    }
+  };
+}
+export {
+  mountInsulinPlanner
+};

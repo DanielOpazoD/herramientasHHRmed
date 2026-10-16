@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Esquema de Insulinoterapia · Hospital Hanga Roa</title>
+    <style>
+      body {
+        margin: 0;
+      }
+    </style>
+    <script type="importmap">
+      { "imports": { "@hhr/insulin-core": "./packages/insulin-core/src/index.js" } }
+    </script>
+  </head>
+  <body>
+    <main id="planner"></main>
+    <script type="module">
+      import { mountInsulinPlanner } from './packages/insulin-planner/src/index.js';
+      mountInsulinPlanner(document.querySelector('#planner'), {
+        getPortableBundle: async () => {
+          const response = await fetch('./dist/insulinoterapia.html');
+          if (!response.ok) throw new Error('Ejecute npm run build antes de guardar el HTML.');
+          const html = new DOMParser().parseFromString(await response.text(), 'text/html');
+          return html.querySelector('script[data-hhr-bundle]').textContent;
+        },
+      });
+    </script>
+  </body>
+</html>

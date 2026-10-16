@@ -1,0 +1,8 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+package-lock.json
+packages/insulin-planner/src/template.js
+
+packages/insulin-planner/src/styles.js

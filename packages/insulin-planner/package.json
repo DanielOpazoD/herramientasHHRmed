@@ -1,0 +1,19 @@
+{
+  "name": "@hhr/insulin-planner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Interfaz embebible del esquema de insulinoterapia HHR.",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "@hhr/insulin-core": "0.1.0"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@hhr/insulin-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Modelo, perfiles y texto clínico de insulinoterapia, sin DOM ni dependencias de ejecución.",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "node": ">=22"
+  }
+}

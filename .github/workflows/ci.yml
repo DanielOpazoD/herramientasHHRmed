@@ -1,0 +1,23 @@
+name: Verify reusable modules
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test
+      - run: npm run test:types
+      - run: npm run build
+      - run: npm run format:check
+      - run: git diff --exit-code -- dist/ packages/insulin-planner/src/styles.js
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
